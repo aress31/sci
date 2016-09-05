@@ -35,9 +35,9 @@ A high level overview of the steps involved during code injection is:
 		
 	[-a]: 	applicaion to modify.
 	[-t]: 	directory/file where to recursively perform the injection. If this argument is absent, the injection is performed within the whole app.
-	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header - **help for certificate unpinning** -.
+	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header - help for certificate unpinning -.
 	[-p]: 	payload to inject. 
-	[-ppg]:	spoofed SMS content to send - **to propagate the malware** -.
+	[-ppg]:	spoofed SMS content to send - to propagate the malware -.
 	[-rh]:  IP address of the attacker/script for sending the stolen data.
 	[-s]:	search for the main activity.
 
