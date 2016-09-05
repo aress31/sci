@@ -62,7 +62,7 @@ Display the help menu:
 
 		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
 
-Connect your phone to your computer and use the following commands to filter and display the modified app runtime method calls:
+Connect a smartphone to a computer and launch *adb* with the following command to display an app runtime method calls:
 
 		$ adb logcat | grep "::trace
 
