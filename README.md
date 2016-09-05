@@ -67,14 +67,15 @@ Display the help menu:
 
 ## Dependencies
 ### Third-party libraries
-#### progressbar:
-You need to install the progressbar package available at the link below. Alternatively, you can also comment out every lines linked to the use of this library in the **payload.py** file.
-	
-<http://code.google.com/p/python-progressbar/>
+#### colorama 0.3.7:
+The *python3-colorama* package is required. 
 
-Installation on Linux (debian):
+<https://pypi.python.org/pypi/colorama>
 
-	$ sudo apt-get install python3-progressbar -y
+#### tqdm 4.8.4: 
+The *python3-tqdm* package is required. 
+
+<https://pypi.python.org/pypi/tqdm>  
 
 ## Future Improvements
 * Add new payloads (reverse shell).
