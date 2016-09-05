@@ -12,7 +12,7 @@ More information about Android reverse engineering can be found at:
 
 <http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
 
-### Automation for a simpler world
+### Automation for a simpler world...
 Code injections are performed at the assembly level (smali files) making the differenciation process between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
 
 A high level overview of the steps involved during code injection is:
