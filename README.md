@@ -16,6 +16,7 @@ More information about Android reverse engineering can be found at:
 Code injections are performed at the assembly level (smali files) which make the process of differenciation between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
 
 A high level overview of the steps involved during code injection is:
+
 1. Disassembling the application
 2. Collecting relevant information about the application. 
 	* Classes name.
