@@ -4,20 +4,20 @@
 
 The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
 
-Lately, new features and payloads were added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development could easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
+Lately, new features and payloads were added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
 
-**Tampering Android applications has never been that easy!**
+*Tampering Android applications has never been that easy!*
 
 More information about Android reverse engineering can be found at:
 
 <http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
 
 ### Automation for a simpler world
-Code injections are performed at the assembly level (smali files) which make the process of differenciation between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
+Code injections are performed at the assembly level (smali files) making the differenciation process between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
 
 A high level overview of the steps involved during code injection is:
 
-1. Disassembling the application
+1. Disassembling the application.
 2. Collecting relevant information about the application. 
 	* Classes name.
 	* Methods name.
@@ -32,6 +32,7 @@ A high level overview of the steps involved during code injection is:
 Generic usage:
 
 		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -ppg [spoofed_SMS]
+		
 	[-a]: 	applicaion to modify.
 	[-t]: 	directory/file where to recursively perform the injection. If this argument is absent, the injection is performed within the whole app.
 	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header - **help for certificate unpinning** -.
@@ -41,22 +42,22 @@ Generic usage:
 
 Spyware usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p *spyware* -rh [script] -ppg [spoofed_SMS]
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS]
     
-    [-ppg]:	link with the malicious app. 
+    	[-ppg]:	link with the malicious app. 
 	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
 
-	**Tip**: Inject the Spyware on the **onCreate()** method of the main activity.
+*Advice*: Inject the Spyware on the **onCreate()** method of the main activity.
 
 Logger usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p *logger*
+		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
 
-	**Note**: Connect your phone to your computer and use the following command to filter and print out only the modified app runtime method calls:
+*Note*: Connect your phone to your computer and use the following command to filter and print out only the modified app runtime method calls:
 
 		$ adb logcat | grep "::trace
 
-Identify the main activity (works with obfuscated app):
+Identify the main activity - works with obfuscated apps -:
 
 		$ python3 sci.py -a [apps] -s
 		
