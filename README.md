@@ -64,7 +64,7 @@ Display the help menu:
 
 Connect a smartphone to a computer and launch *adb* with the following command to display an app runtime method calls:
 
-		$ adb logcat | grep "::trace
+		$ adb logcat | grep "::trace"
 
 ## Dependencies
 ### Third-party libraries
