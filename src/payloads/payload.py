@@ -14,25 +14,22 @@
 
 import fnmatch
 import os
-import utils
 
 from tqdm import tqdm
+from utils import util
 
 
 class Payload(object):
     def __init__(self, args):
         self.args = args
         self.name = args.payload
-        self.app_path = os.path.abspath(self.args.app_path)
-        head, tail = os.path.split(self.app_path)
+        self.app_absolute_path = os.path.abspath(self.args.app)
+        head, tail = os.path.split(self.app_absolute_path)
         self.app_name = os.path.splitext(tail)[0]
-        self.target = os.path.join("tmp", self.app_name, args.target)
+        self.destination = os.path.join("../tmp", self.app_name, args.destination)
         self.keywords = args.keywords.split(',')
 
     def run():
-        pass
-
-    def check_params(self):
         pass
 
     def inject(self):
@@ -40,10 +37,10 @@ class Payload(object):
 
     def inject_in_dir(self, d_metadata):
         """
-        Recursively inject the payload within the files contained in the target
+        Recursively inject the payload within the files contained in the destination
         folder.
         """
-        for root, dirs, files in tqdm(list(os.walk(self.target)), unit='dir',
+        for root, dirs, files in tqdm(list(os.walk(self.destination)), unit='dir',
                                       unit_scale=True, dynamic_ncols=True):
             for file in fnmatch.filter(files, "*.smali"):
                 f_path = os.path.join(root, file)
@@ -55,26 +52,26 @@ class Payload(object):
                     f_metadata = d_metadata[f_path]
                     self.inject(f_path, f_metadata)
 
-    def copy_to_apk(self, path):
+    def import_payload(self, path):
         """
-        Copy the payload to the android folder of the app.
+        Copy the payload into the app android folder.
         """
         if (os.path.isfile(path)):
-            d_path = os.path.dirname(path)
+            dir_path = os.path.dirname(path)
 
         else:
-            d_path = path
+            dir_path = path
 
-        subdirs = os.listdir(d_path)
+        subdirs = os.listdir(dir_path)
 
         for subdir in subdirs:
             # Check that the current directory is the correct android directory
             # (there is always a support dir)
-            if (os.path.isdir(os.path.join(d_path, subdir)) and
-               subdir == "android" and
-               os.path.exists(os.path.join(d_path, subdir, "support"))):
-                utils.copy_dir(os.path.join("payloads", self.name),
-                               os.path.join(d_path, subdir, self.name))
-                return (os.path.join(d_path, subdir, self.name))
+            if (os.path.isdir(os.path.join(dir_path, subdir)) and
+                subdir == "android" and
+                os.path.exists(os.path.join(dir_path, subdir, "support"))):
+                util.copy(os.path.join("../payloads/smali", self.name),
+                           os.path.join(dir_path, subdir, self.name))
+                return os.path.join(dir_path, subdir, self.name)
 
-        return self.copy_to_apk(os.path.dirname(d_path))
+        return self.import_payload(os.path.dirname(dir_path))

@@ -13,45 +13,33 @@
 #    limitations under the License.
 
 import os
-import utils.metadata as metadata
 import time
-import utils
 
+from metadata import metadata
 from payloads.payload import Payload
-
+from utils import info, register
 
 class Logger(Payload):
     def __init__(self, args):
         Payload.__init__(self, args)
 
     def run(self):
-        self.check_params()
-        self.copy_to_apk(self.target)
+        self.import_payload(self.destination)
 
-        if (os.path.isdir(self.target)):
-            d_metadata = metadata.generate_d_metadata(self.target)
-            self.inject_in_dir(d_metadata)
-
-            # Displays result information
-            utils.get_dir_info(self, d_metadata)
-
-        elif (os.path.isfile(self.target)):
-            f_metadata = metadata.generate_f_metadata(self.target)
-            self.inject(self.target, f_metadata)
+        if (os.path.isdir(self.destination)):
+            dir_metadata = metadata.generate_dir_metadata(self.destination)
+            self.inject_in_dir(dir_metadata)
 
             # Displays result information
-            utils.get_file_info(self, f_metadata)
+            info.get_dir_info(self, dir_metadata)
 
-    def check_params(self):
-        """
-        Validate command line arguments.
-        """
-        if (self.args.rhost or self.args.propagate):
-            return False
-        elif not (os.path.exists(self.target)):
-            return False
-        else:
-            return True
+        elif (os.path.isfile(self.destination)):
+            file_metadata = metadata.generate_file_metadata(self.destination)
+            self.inject(self.destination, file_metadata)
+
+            # Displays result information
+            info.get_file_info(self, file_metadata)
+
 
     def get_instruction(self, reg_for_stacktrace, returned_reg_type,
                         returned_reg=None):
@@ -89,7 +77,7 @@ class Logger(Payload):
 
         return instruction
 
-    def inject(self, f_path, f_metadata):
+    def inject(self, file_path, file_metadata):
         """
         Inject the logger.
         """
@@ -98,7 +86,7 @@ class Logger(Payload):
         valid_regs = []
         process = False
 
-        with open(f_path, 'r') as file:
+        with open(file_path, 'r') as file:
             for line in file:
                 # We ignore the abstract methods
                 if ((line.find(".method ") == 0) and
@@ -107,9 +95,9 @@ class Logger(Payload):
                         any(keyword in line for keyword in self.keywords))):
                     words = line.split()
                     # Retrieving the method data from the meta-data
-                    data = metadata.get_data(words[-1], f_metadata)
+                    data = metadata.get_data(words[-1], file_metadata)
                     returned_reg = data[3]
-                    valid_regs = utils.get_valid_regs(returned_reg['reg'],
+                    valid_regs = register.get_valid_regs(returned_reg['reg'],
                                                       data[2])
                     # The returned register index must be inferior than 16, the
                     #  method must not contains any monitor directive
@@ -154,6 +142,6 @@ class Logger(Payload):
                     buffer.append(line)
 
         # Overwritting the .smali file
-        with open(f_path, 'w') as file:
+        with open(file_path, 'w') as file:
             for line in buffer:
                 file.write(line)
