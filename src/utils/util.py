@@ -22,12 +22,12 @@ def copy(src, dest):
     Remove the destination directory if it exists and then copy the source.
     """
     if os.path.exists(dest):
-        shutil.rmtree(dest)
+        shutil.rmtree(dest, ignore_errors=True)
     try:
         shutil.copytree(src, dest)
 
     except OSError as error:
-        # If the error was caused because the source wasn't a directory
+        # If the source is not a directory
         if (error.errno == errno.ENOTDIR):
             shutil.copy(src, dest)
 
@@ -40,4 +40,3 @@ def move(src, dest):
         os.remove(dest)
 
     shutil.move(src, dest)
-

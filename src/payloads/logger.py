@@ -19,63 +19,27 @@ from metadata import metadata
 from payloads.payload import Payload
 from utils import info, register
 
+
 class Logger(Payload):
     def __init__(self, args):
         Payload.__init__(self, args)
 
     def run(self):
-        self.import_payload(self.destination)
+        self.export_payload(self.destination)
 
         if (os.path.isdir(self.destination)):
             dir_metadata = metadata.generate_dir_metadata(self.destination)
             self.inject_in_dir(dir_metadata)
 
             # Displays result information
-            info.get_dir_info(self, dir_metadata)
+            return info.get_dir_info(self, dir_metadata)
 
         elif (os.path.isfile(self.destination)):
             file_metadata = metadata.generate_file_metadata(self.destination)
             self.inject(self.destination, file_metadata)
 
             # Displays result information
-            info.get_file_info(self, file_metadata)
-
-
-    def get_instruction(self, reg_for_stacktrace, returned_reg_type,
-                        returned_reg=None):
-        """
-        Return the method call to use accordingly to the returned
-        register type.
-        """
-        allowed_types = [
-            'Z', "[Z", "Ljava/lang/Boolean;", "[Ljava/lang/Boolean;",
-            'B', "[B", "Ljava/lang/Byte;", "[Ljava/lang/Byte;",
-            'S', "[S", "Ljava/lang/Short;", "[Ljava/lang/Short;",
-            'C', "[C", "Ljava/lang/Character;", "[Ljava/lang/Character;",
-            'I', "[I", "Ljava/lang/Integer;", "[Ljava/lang/Integer;",
-            # Long and Double got 64 bits regs (wide directive)
-            # 'J', "[J", "Ljava/lang/Long;", "[Ljava/lang/Long;",
-            'F', "[F", "Ljava/lang/Float;", "[Ljava/lang/Float;",
-            # 'D', "[D", "Ljava/lang/Double;", "[Ljava/lang/Double;",
-            "Ljava/lang/String;", "[Ljava/lang/String;",
-            "Ljava/lang/Object;", "[Ljava/lang/Object;",
-            # 'Lorg/json/JSONObject;',
-            "Ljava/net/URI;", "Ljava/net/URL;", "Ljava/net/URLConnection;",
-            # 'Ljava/net/HttpURLConnection;',
-            "Lorg/apache/http/HttpEntity;",
-            # 'Ljava/io/InputStream;'
-            ]
-
-        if (returned_reg_type in allowed_types):
-            instruction = ("\tinvoke-static {{{0}, {1}}}, Landroid/logger/Logger;\
-                ->printStackTrace(Ljava/lang/String;{2})V\n".format(
-                    reg_for_stacktrace, returned_reg, returned_reg_type))
-        else:
-            instruction = ("\tinvoke-static {{{0}}}, Landroid/logger/Logger;\
-                ->printStackTrace(Ljava/lang/String;)V\n".format(
-                    reg_for_stacktrace))
-
-        return instruction
+            return info.get_file_info(self, file_metadata)
 
     def inject(self, file_path, file_metadata):
         """
@@ -92,13 +56,13 @@ class Logger(Payload):
                 if ((line.find(".method ") == 0) and
                    (line.find("abstract ") < 0) and
                    (self.keywords[0] == "-1" or
-                        any(keyword in line for keyword in self.keywords))):
+                   any(keyword in line for keyword in self.keywords))):
                     words = line.split()
                     # Retrieving the method data from the meta-data
                     data = metadata.get_data(words[-1], file_metadata)
                     returned_reg = data[3]
                     valid_regs = register.get_valid_regs(returned_reg['reg'],
-                                                      data[2])
+                                                         data[2])
                     # The returned register index must be inferior than 16, the
                     #  method must not contains any monitor directive
                     # must not be alredy edited and must have less
@@ -145,3 +109,43 @@ class Logger(Payload):
         with open(file_path, 'w') as file:
             for line in buffer:
                 file.write(line)
+
+    def get_instruction(self, reg_for_stacktrace, returned_reg_type,
+                        returned_reg=None):
+        """
+        Return the method call to use accordingly to the returned
+        register type.
+        """
+        allowed_types = [
+            'Z', "[Z", "Ljava/lang/Boolean;", "[Ljava/lang/Boolean;",
+            'B', "[B", "Ljava/lang/Byte;", "[Ljava/lang/Byte;",
+            'S', "[S", "Ljava/lang/Short;", "[Ljava/lang/Short;",
+            'C', "[C", "Ljava/lang/Character;", "[Ljava/lang/Character;",
+            'I', "[I", "Ljava/lang/Integer;", "[Ljava/lang/Integer;",
+            # Long and Double got 64 bits regs (wide directive)
+            # 'J', "[J", "Ljava/lang/Long;", "[Ljava/lang/Long;",
+            'F', "[F", "Ljava/lang/Float;", "[Ljava/lang/Float;",
+            # 'D', "[D", "Ljava/lang/Double;", "[Ljava/lang/Double;",
+            "Ljava/lang/String;", "[Ljava/lang/String;",
+            "Ljava/lang/Object;", "[Ljava/lang/Object;",
+            # 'Lorg/json/JSONObject;',
+            "Ljava/net/URI;", "Ljava/net/URL;", "Ljava/net/URLConnection;",
+            # 'Ljava/net/HttpURLConnection;',
+            "Lorg/apache/http/HttpEntity;",
+            # 'Ljava/io/InputStream;'
+            ]
+
+        if (returned_reg_type in allowed_types):
+            instruction = (
+                "\tinvoke-static {{{0}, {1}}}, Landroid/logger/Logger;"
+                "->printStackTrace(Ljava/lang/String;{2})V\n".format(
+                    reg_for_stacktrace, returned_reg, returned_reg_type)
+            )
+        else:
+            instruction = (
+                "\tinvoke-static {{{0}}}, Landroid/logger/Logger;"
+                "->printStackTrace(Ljava/lang/String;)V\n".format(
+                    reg_for_stacktrace)
+            )
+
+        return instruction

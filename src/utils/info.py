@@ -14,24 +14,26 @@
 
 import os
 
+from utils import config
 
-def get_file_info(payload, f_metadata):
+
+def get_file_info(payload, file_metadata):
     """
     Print out information about the processed file.
     """
     app_name = payload.app_name
     edited_methods = 0
 
-    if not os.path.exists("../logs"):
-        os.makedirs("../logs")
+    if not os.path.exists(config.LOG_PATH):
+        os.makedirs(config.LOG_PATH)
 
-    with open("../logs/" + app_name, 'w') as file:
-        for data in f_metadata:
+    with open(config.LOG_FOLDER + app_name + ".log", 'w') as file:
+        for data in file_metadata:
                 if (payload.name in data[5]):
                     file.write(data[0] + '->' + data[1] + '\n')
                     edited_methods += 1
 
-    return edited_methods, os.path.abspath(file.name)
+    return len(file_metadata), edited_methods, os.path.abspath(file.name)
 
 
 def get_dir_info(payload, dir_metadata):
@@ -42,10 +44,10 @@ def get_dir_info(payload, dir_metadata):
     methods = 0
     edited_methods = 0
 
-    if not os.path.exists("../logs"):
-        os.makedirs("../logs")
+    if not os.path.exists(config.LOG_FOLDER):
+        os.makedirs(config.LOG_FOLDER)
 
-    with open("../logs/" + app_name, 'w') as file:
+    with open(config.LOG_FOLDER + app_name + ".log", 'w') as file:
         for key, value in dir_metadata.items():
             for data in value:
                 methods += 1
