@@ -76,4 +76,4 @@ class Payload(object):
                               os.path.join(dir_path, subdir, self.name))
                     return os.path.join(dir_path, subdir, self.name)
 
-        return self.import_payload(os.path.dirname(dir_path))
+        return self.export_payload(os.path.dirname(dir_path))

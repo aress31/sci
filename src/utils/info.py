@@ -24,8 +24,8 @@ def get_file_info(payload, file_metadata):
     app_name = payload.app_name
     edited_methods = 0
 
-    if not os.path.exists(config.LOG_PATH):
-        os.makedirs(config.LOG_PATH)
+    if not os.path.exists(config.LOG_FOLDER):
+        os.makedirs(config.LOG_FOLDER)
 
     with open(config.LOG_FOLDER + app_name + ".log", 'w') as file:
         for data in file_metadata:

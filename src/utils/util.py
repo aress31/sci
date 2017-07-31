@@ -15,28 +15,36 @@
 import errno
 import os
 import shutil
+import zipfile
 
+from utils import config
 
 def copy(src, dest):
     """
     Remove the destination directory if it exists and then copy the source.
     """
-    if os.path.exists(dest):
-        shutil.rmtree(dest, ignore_errors=True)
     try:
+        # If path already exists, remove it before copying
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+
         shutil.copytree(src, dest)
 
-    except OSError as error:
+    except OSError as ex:
         # If the source is not a directory
-        if (error.errno == errno.ENOTDIR):
+        if ex.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
+        else: 
+            raise
 
+def remove_from_zip(zip_file, file_names):
+    tmp_zip = os.path.join(config.TMP_FOLDER, 'tmp.zip')
 
-def move(src, dest):
-    """
-    Remove the destination file if it exists and then move the source.
-    """
-    if os.path.exists(dest):
-        os.remove(dest)
+    with zipfile.ZipFile(zip_file, 'r') as zip_read:
+        with zipfile.ZipFile(tmp_zip, 'w') as zip_write:
+            for item in zip_read.infolist():
+                if item.filename not in file_names:
+                    data = zip_read.read(item.filename)
+                    zip_write.writestr(item, data)
 
-    shutil.move(src, dest)
+    shutil.move(tmp_zip, zip_file)
