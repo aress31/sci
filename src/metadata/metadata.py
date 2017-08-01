@@ -24,14 +24,14 @@ def generate_dir_metadata(d_path):
     Extract the information concerning the methods inside of a .smali
     file ([class_name, method name, reg number, [variables], class name]).
     """
-    d_metadata = {}
+    dir_metadata = {}
 
     for root, dirs, files in os.walk(d_path):
         for f_name in fnmatch.filter(files, "*.smali"):
             file_path = os.path.join(root, f_name)
-            d_metadata[file_path] = generate_file_metadata(file_path)
+            dir_metadata[file_path] = generate_file_metadata(file_path)
 
-    return d_metadata
+    return dir_metadata
 
 
 def generate_file_metadata(file_path):
@@ -58,10 +58,10 @@ def generate_file_metadata(file_path):
                   (line.find("abstract ") < 0)):
                 # We get the method name
                 words = line.split()
-                m_name = words[-1]
+                method_name = words[-1]
 
                 # We get the returned reg type from the method name
-                words1 = m_name.split(')')
+                words1 = method_name.split(')')
                 returned_reg["reg_type"] = words1[-1]
 
                 inside = True
@@ -93,7 +93,7 @@ def generate_file_metadata(file_path):
                     returned_reg["reg"] = "v-1"
 
                 # Store the data related to the current methods
-                methods.append([class_name, m_name, regs,
+                methods.append([class_name, method_name, regs,
                                 returned_reg, monitor_function, payload])
 
                 # Reset the vars for the next method
@@ -115,12 +115,12 @@ def generate_file_metadata(file_path):
     return file_metadata[file_path]
 
 
-def get_data(m_name, file_metadata):
+def get_data(method_name, file_metadata):
     """
     Return the method data containing in the file metadata.
     """
     for data in file_metadata:
-        if (m_name == data[1]):
+        if (method_name == data[1]):
             return data
 
 

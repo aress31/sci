@@ -56,7 +56,7 @@ def get_logger():
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger("TinderSwiper")
+    logger = logging.getLogger("sci")
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
 

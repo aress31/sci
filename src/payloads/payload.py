@@ -14,20 +14,19 @@
 
 import fnmatch
 import os
+import sys
 
 from tqdm import tqdm
-from utils import config, util
+from utils import config, file_operation
 
 
 class Payload(object):
     def __init__(self, args):
         self.args = args
-        self.name = args.payload
-        self.app_absolute_path = os.path.abspath(self.args.app.name)
-        head, tail = os.path.split(self.app_absolute_path)
-        self.app_name = os.path.splitext(tail)[0]
-        self.destination = os.path.join(
-            config.TMP_FOLDER, self.app_name, args.destination)
+        self.payload_name = args.payload_name
+        self.app_name = os.path.basename(args.app.name)
+        self.app_path = os.path.abspath(args.app.name)
+        self.destination = os.path.join(self.app_name, args.destination)
         self.keywords = args.keywords.split(',')
 
     def run(self):
@@ -36,7 +35,7 @@ class Payload(object):
     def inject(self):
         pass
 
-    def inject_in_dir(self, d_metadata):
+    def inject_in_dir(self, dir_metadata):
         """
         Recursively inject the payload within the files contained in the
         destination folder.
@@ -48,32 +47,26 @@ class Payload(object):
                 file_path = os.path.join(root, file)
 
                 # Skip the payload directory
-                if (self.args.payload in file_path):
+                if (self.payload_name in file_path):
                     continue
                 else:
-                    file_metadata = d_metadata[file_path]
+                    file_metadata = dir_metadata[file_path]
                     self.inject(file_path, file_metadata)
 
-    def export_payload(self, path):
+    # TODO: Improve the logic
+    def export_payload(self):
         """
-        Copy the payload into the app android folder.
+        Copy the smali payload files into the app android folder.
         """
-        if (os.path.isfile(path)):
-            dir_path = os.path.dirname(path)
+        for root, subdirs, files in os.walk(
+           os.path.join(config.TMP_FOLDER, self.app_name)):
+            for subdir in subdirs:
+                # Verify that the current directory is the correct
+                # android directory (hint: always a 'support dir)
+                if subdir == "android" and os.path.isdir(
+                   os.path.join(root, subdir, "support")):
+                    file_operation.copy(
+                        os.path.join(config.PAYLOAD_FOLDER, self.payload_name),
+                        os.path.join(root, subdir, self.payload_name))
 
-        else:
-            dir_path = path
-
-        subdirs = os.listdir(dir_path)
-
-        for subdir in subdirs:
-            # Check that the current directory is the correct android directory
-            # (there is always a support dir)
-            if (os.path.isdir(os.path.join(dir_path, subdir)) and
-               subdir == "android" and
-               os.path.exists(os.path.join(dir_path, subdir, "support"))):
-                    util.copy(os.path.join(config.PAYLOAD_FOLDER, self.name),
-                              os.path.join(dir_path, subdir, self.name))
-                    return os.path.join(dir_path, subdir, self.name)
-
-        return self.export_payload(os.path.dirname(dir_path))
+                    return os.path.join(root, subdir, self.payload_name)

