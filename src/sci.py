@@ -14,6 +14,9 @@
 #    limitations under the License.
 
 import argparse
+import json
+import logging
+import logging.config
 import os
 import shutil
 import sys
@@ -21,10 +24,7 @@ import sys
 from payloads.logger import Logger
 from payloads.spyware import Spyware
 from reverse_engineer import reverse_engineer
-from utils import config, logger
-
-# Instanciate a custom output logger
-logger = logger.get_logger()
+from utils import config
 
 # Implemented payloads
 payloads = [
@@ -35,26 +35,31 @@ payloads = [
 
 def banner():
     banner = """
-       d888888o.       ,o888888o.     8 8888
-     .`8888:' `88.    8888     `88.   8 8888
-     8.`8888.   Y8 ,8 8888       `8.  8 8888
-     `8.`8888.     88 8888            8 8888
-      `8.`8888.    88 8888            8 8888
-       `8.`8888.   88 8888            8 8888
-        `8.`8888.  88 8888            8 8888
-    8b   `8.`8888. `8 8888       .8'  8 8888
-    `8b.  ;8.`8888    8888     ,88'   8 8888
-     `Y8888P ,88P'     `8888888P'     8 8888
+                   .d8888b.   .d8888b. 8888888
+                  d88P  Y88b d88P  Y88b  888
+                  Y88b.      888    888  888
+                   "Y888b.   888         888
+                      "Y88b. 888         888
+                        "888 888    888  888
+                  Y88b  d88P Y88b  d88P  888
+                   "Y8888P"   "Y8888P" 8888888 
     """
     print("{}".format(banner))
 
 
 def copyright():
     copyright = """
-           =[ smali-code-injector v1.1-dev       ]
-    + -- --=[ Alexandre Teyar @Ares              ]
-    + -- --=[ Pentester at Ambersail Ltd.        ]
-    + -- --=[ GitHub: https://github.com/AresS31 ]
+        =[ smali-code-injector v1.2-dev              |
++ -- ---=[ Alexandre Teyar @Ares                     |
++ -- ---=[ Penetration tester at Ambersail Ltd.      |
++ -- ---=[ GitHub:   github.com/AresS31              |
+        =[ LinkedIn: linkedin.com/in/alexandre-teyar |
+
+Disclamer: Usage of SCI for attacking targets without prior mutual consent 
+           is illegal. It is the end user's responsibility to obey all 
+           applicable local, state and federal laws.
+           Developers assume no liability and are not responsible for any 
+           misuse or damage caused by this program.
     """
     print("{}".format(copyright))
 
@@ -170,6 +175,10 @@ def main():
 
         args = parse_args()
 
+        # Configure the logging module
+        with open(config.LOGGING_CONF, 'r') as conf:
+            logging.config.dictConfig(json.load(conf))
+
         if (args.command == "search"):
             logger.info("identifying the main activity...")
             main_activity = reverse_engineer.get_main_activity(args.app.name)
@@ -184,7 +193,7 @@ def main():
             payload.run()
 
     except KeyboardInterrupt:
-        logger.error("CTRL+C pressed, exiting...")
+        logging.error("CTRL+C pressed, exiting...")
 
         if os.path.exists(config.TMP_FOLDER):
             shutil.rmtree(config.TMP_FOLDER, ignore_errors=True)

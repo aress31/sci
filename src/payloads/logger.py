@@ -13,29 +13,27 @@
 #    limitations under the License.
 
 import os
+import logging
 import time
 
 from metadata import metadata
 from payloads.payload import Payload
 from reverse_engineer import reverse_engineer
-from utils import logger, register
-
-logger = logger.get_logger()
-
+from utils import register_operation
 
 class Logger(Payload):
     def __init__(self, args):
         Payload.__init__(self, args)
 
     def run(self):
-        logger.info("disassembling...")
-        logger.warning("this operation might take some time")
+        logging.info("disassembling...")
+        logging.warning("this operation might take some time")
         reverse_engineer.disassemble(self)
 
-        logger.info("exporting payload...")
+        logging.info("export the smali payload files into the app...")
         self.export_payload()
 
-        logger.info("injecting...")
+        logging.info("injecting...")
         if (os.path.isdir(self.destination)):
             dir_metadata = metadata.generate_dir_metadata(self.destination)
             self.inject_in_dir(dir_metadata)
@@ -44,11 +42,11 @@ class Logger(Payload):
             file_metadata = metadata.generate_file_metadata(self.destination)
             self.inject(self.destination, file_metadata)
 
-        logger.info("reassembling...")
-        logger.warning("this operation might take some time")
+        logging.info("reassembling...")
+        logging.warning("this operation might take some time")
         reverse_engineer.reassemble(self)
 
-        logger.info("signing...")
+        logging.info("signing...")
         reverse_engineer.sign(self)
 
     def inject(self, file_path, file_metadata):
@@ -71,7 +69,7 @@ class Logger(Payload):
                     # Retrieving the method data from the meta-data
                     data = metadata.get_data(words[-1], file_metadata)
                     returned_reg = data[3]
-                    valid_regs = register.get_valid_regs(returned_reg['reg'],
+                    valid_regs = register_operation.get_valid_regs(returned_reg['reg'],
                                                          data[2])
                     # The returned register index must be inferior than 16, the
                     #  method must not contains any monitor directive

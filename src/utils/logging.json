@@ -1,0 +1,30 @@
+{
+    "version": 1,
+    "disable_existing_loggers": true,
+    "formatters": {
+        "basic": {
+            "class": "logging.Formatter",
+            "datefmt": "%H:%M:%S",
+            "format": "[%(asctime)s] [%(levelname)-8s] %(message)s"
+        }
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "basic",
+            "stream": "ext://sys.stdout"
+        }
+    },
+
+    "loggers": {
+    },
+
+    "root": {
+        "level": "DEBUG",
+        "handlers": [
+            "console"
+        ]
+    }
+}

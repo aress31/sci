@@ -16,7 +16,7 @@ import fnmatch
 import os
 import re
 
-from utils import register
+from utils import register_operation
 
 
 def generate_dir_metadata(d_path):
@@ -135,6 +135,6 @@ def get_var_from_line(line):
     for word in words:
         match = re.match(pattern, word)
         if match:
-            regs.append(register.clean_reg_name(word, [',', '{', '}']))
+            regs.append(register_operation.clean_reg_name(word, [',', '{', '}']))
 
     return regs
