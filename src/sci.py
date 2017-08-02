@@ -42,7 +42,7 @@ def banner():
                       "Y88b. 888         888
                         "888 888    888  888
                   Y88b  d88P Y88b  d88P  888
-                   "Y8888P"   "Y8888P" 8888888 
+                   "Y8888P"   "Y8888P" 8888888
     """
     print("{}".format(banner))
 
@@ -55,10 +55,10 @@ def copyright():
 + -- ---=[ GitHub:   github.com/AresS31              |
         =[ LinkedIn: linkedin.com/in/alexandre-teyar |
 
-Disclamer: Usage of SCI for attacking targets without prior mutual consent 
-           is illegal. It is the end user's responsibility to obey all 
+Disclamer: Usage of SCI for attacking targets without prior mutual consent
+           is illegal. It is the end user's responsibility to obey all
            applicable local, state and federal laws.
-           Developers assume no liability and are not responsible for any 
+           Developers assume no liability and are not responsible for any
            misuse or damage caused by this program.
     """
     print("{}".format(copyright))
@@ -175,14 +175,14 @@ def main():
 
         args = parse_args()
 
-        # Configure the logging module
-        with open(config.LOGGING_CONF, 'r') as conf:
-            logging.config.dictConfig(json.load(conf))
+        # Load the logging module configuration
+        with open(config.LOGGING_CONF, 'r') as json_config:
+            logging.config.dictConfig(json.load(json_config))
 
         if (args.command == "search"):
-            logger.info("identifying the main activity...")
+            logging.info("identifying the main activity...")
             main_activity = reverse_engineer.get_main_activity(args.app.name)
-            logger.success("{}".format(main_activity))
+            logging.info("{}".format(main_activity))
 
         elif (args.command == "payload"):
             if(args.payload_name == "spyware"):
@@ -193,10 +193,10 @@ def main():
             payload.run()
 
     except KeyboardInterrupt:
-        logging.error("CTRL+C pressed, exiting...")
+        logging.error("CTRL+C pressed, cleaning-up then exiting...")
 
         if os.path.exists(config.TMP_FOLDER):
-            shutil.rmtree(config.TMP_FOLDER, ignore_errors=True)
+            shutil.rmtree(config.TMP_FOLDER)
 
         sys.exit(1)
 

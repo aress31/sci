@@ -21,38 +21,46 @@ def get_file_info(payload, file_metadata):
     """
     Print out information about the processed file.
     """
-    app_name = payload.app_name
-    edited_methods = 0
+    edited_method = 0
 
     if not os.path.exists(config.LOG_FOLDER):
         os.makedirs(config.LOG_FOLDER)
 
-    with open(config.LOG_FOLDER + app_name + ".log", 'w') as file:
+    with open(
+        os.path.join(
+            config.LOG_FOLDER,
+            os.path.splitext(payload.app_name)[0] + ".log"
+        ), 'w'
+    ) as log:
         for data in file_metadata:
-                if (payload.name in data[5]):
-                    file.write(data[0] + '->' + data[1] + '\n')
-                    edited_methods += 1
+                if (payload.payload_name in data[5]):
+                    log.write(data[0] + '->' + data[1] + '\n')
+                    edited_method += 1
 
-    return len(file_metadata), edited_methods, os.path.abspath(file.name)
+    return len(file_metadata), edited_method, os.path.abspath(log.name)
 
 
 def get_dir_info(payload, dir_metadata):
     """
     Print out information about the processed file.
     """
-    app_name = payload.app_name
     methods = 0
-    edited_methods = 0
+    edited_method = 0
 
     if not os.path.exists(config.LOG_FOLDER):
         os.makedirs(config.LOG_FOLDER)
 
-    with open(config.LOG_FOLDER + app_name + ".log", 'w') as file:
+    with open(
+        os.path.join(
+            config.LOG_FOLDER,
+            os.path.splitext(payload.app_name)[0] + ".log"
+        ), 'w'
+    ) as log:
         for key, value in dir_metadata.items():
             for data in value:
                 methods += 1
-                if (payload.name in data[5]):
-                    file.write(data[0] + '->' + data[1] + '\n')
-                    edited_methods += 1
+                if (payload.payload_name in data[5]):
+                    log.write(data[0] + '->' + data[1] + '\n')
+                    edited_method += 1
 
-    return methods, edited_methods, os.path.abspath(file.name)
+    return methods, edited_method, os.path.abspath(log.name)

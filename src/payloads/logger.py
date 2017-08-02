@@ -12,42 +12,19 @@
 # See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
-import logging
 import time
 
 from metadata import metadata
 from payloads.payload import Payload
-from reverse_engineer import reverse_engineer
 from utils import register_operation
+
 
 class Logger(Payload):
     def __init__(self, args):
         Payload.__init__(self, args)
 
     def run(self):
-        logging.info("disassembling...")
-        logging.warning("this operation might take some time")
-        reverse_engineer.disassemble(self)
-
-        logging.info("export the smali payload files into the app...")
-        self.export_payload()
-
-        logging.info("injecting...")
-        if (os.path.isdir(self.destination)):
-            dir_metadata = metadata.generate_dir_metadata(self.destination)
-            self.inject_in_dir(dir_metadata)
-
-        elif (os.path.isfile(self.destination)):
-            file_metadata = metadata.generate_file_metadata(self.destination)
-            self.inject(self.destination, file_metadata)
-
-        logging.info("reassembling...")
-        logging.warning("this operation might take some time")
-        reverse_engineer.reassemble(self)
-
-        logging.info("signing...")
-        reverse_engineer.sign(self)
+        super(Logger, self).run()
 
     def inject(self, file_path, file_metadata):
         """
@@ -60,7 +37,7 @@ class Logger(Payload):
 
         with open(file_path, 'r') as file:
             for line in file:
-                # We ignore the abstract methods
+                # Skipping abstract methods
                 if ((line.find(".method ") == 0) and
                    (line.find("abstract ") < 0) and
                    (self.keywords[0] == "-1" or
@@ -69,35 +46,43 @@ class Logger(Payload):
                     # Retrieving the method data from the meta-data
                     data = metadata.get_data(words[-1], file_metadata)
                     returned_reg = data[3]
-                    valid_regs = register_operation.get_valid_regs(returned_reg['reg'],
-                                                         data[2])
+                    valid_regs = register_operation.get_valid_regs(
+                        returned_reg['reg'], data[2]
+                    )
                     # The returned register index must be inferior than 16, the
                     #  method must not contains any monitor directive
                     # must not be alredy edited and must have less
                     # than fitfteen register
                     if ((int(returned_reg["reg"][1:]) < 16) and
                        (len(valid_regs) > 0) and not (data[4])
-                       and not (self.name in data[5])):
+                       and not (self.payload_name in data[5])):
                         process = True
 
                     buffer.append(line)
 
                 elif ((line.find("return", 0, 20) > 0) and (process)):
-                    # We mark the method as processed
-                    buffer.append("\t# {0} has been injected on {1}\n".format(
-                        self.name, time.strftime("%Y-%m-%d %H:%M:%S",
-                                                 time.gmtime())))
-                    data[5].append(self.name)
+                    # Mark the method as processed
+                    buffer.append(
+                        "\t# {0} has been injected on {1}\n".format(
+                            self.payload_name,
+                            time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+                        )
+                    )
+                    data[5].append(self.payload_name)
 
-                    # We set the reg containing the trace
-                    buffer.append("\tconst-string {0}, \"{1}.{2}\"\n".format(
-                        valid_regs[0], data[0], data[1]))
+                    # Set the reg containing the trace
+                    buffer.append(
+                        "\tconst-string {0}, \"{1}.{2}\"\n".format(
+                            valid_regs[0], data[0], data[1]
+                        )
+                    )
 
-                    # We trace the end of the method including the returned reg
+                    # Trace the end of the method including the returned reg
                     # value
                     instruction = self.get_instruction(
                         valid_regs[0], returned_reg["reg_type"],
-                        returned_reg["reg"])
+                        returned_reg["reg"]
+                    )
                     buffer.append(instruction)
 
                     buffer.append(line)
@@ -117,6 +102,12 @@ class Logger(Payload):
         with open(file_path, 'w') as file:
             for line in buffer:
                 file.write(line)
+
+    def set_payload_settings(self, payload_path):
+        """
+        Not required.
+        """
+        pass
 
     def get_instruction(self, reg_for_stacktrace, returned_reg_type,
                         returned_reg=None):
@@ -147,13 +138,15 @@ class Logger(Payload):
             instruction = (
                 "\tinvoke-static {{{0}, {1}}}, Landroid/logger/Logger;"
                 "->printStackTrace(Ljava/lang/String;{2})V\n".format(
-                    reg_for_stacktrace, returned_reg, returned_reg_type)
+                    reg_for_stacktrace, returned_reg, returned_reg_type
+                )
             )
         else:
             instruction = (
                 "\tinvoke-static {{{0}}}, Landroid/logger/Logger;"
                 "->printStackTrace(Ljava/lang/String;)V\n".format(
-                    reg_for_stacktrace)
+                    reg_for_stacktrace
+                )
             )
 
         return instruction

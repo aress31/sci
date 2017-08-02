@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import errno
+import logging
 import os
 import shutil
+import sys
 import zipfile
 
 from utils import config
@@ -24,19 +25,24 @@ def copy(src, dest):
     """
     Remove the destination directory if it exists and then copy the source.
     """
-    try:
-        # If path already exists, remove it before copying
-        if os.path.exists(dest):
-            shutil.rmtree(dest, ignore_errors=True)
+    logging.debug("copying {} to {}".format(src, dest))
 
-        shutil.copytree(src, dest)
+    try:
+        if (os.path.isdir(src)):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+
+            shutil.copytree(src, dest)
+
+        elif (os.path.isfile(src)):
+            if not os.path.exists(os.path.dirname(dest)):
+                os.makedirs(os.path.dirname(dest))
+
+            shutil.copy2(src, dest)
 
     except OSError as ex:
-        # If the source is not a directory
-        if ex.errno == errno.ENOTDIR:
-            shutil.copy(src, dest)
-        else:
-            raise
+        logging.critical("{}".format(ex))
+        sys.exit(1)
 
 
 def remove_from_zip(zip_file, file_names):

