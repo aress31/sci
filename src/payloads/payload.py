@@ -46,8 +46,9 @@ class Payload(object):
                 self.payload_name
             )
         )
-        payload_path = self.export_payload()
-        self.set_payload_settings(payload_path)
+
+        self.export_payload()
+        self.set_payload_settings()
 
         logging.info(
             "injecting the call to the {} "
@@ -141,26 +142,44 @@ class Payload(object):
                     file_metadata = dir_metadata[file_path]
                     self.inject(file_path, file_metadata)
 
-    # TODO: Improve the logic
+    # TODO: Got really messy - improve this if possible
     def export_payload(self):
         """
         Copy the smali payload files into the app android folder.
         """
-        for root, subdirs, files in os.walk(
-           os.path.join(
-                config.TMP_FOLDER, os.path.splitext(self.app_name)[0]
-            )
-        ):
-            for subdir in subdirs:
-                # Verify that the current directory is the correct
-                # android directory (hint: always a 'support dir)
-                if subdir == "android" and os.path.isdir(
-                   os.path.join(root, subdir, "support")):
-                    file_operation.copy(
-                        os.path.join(config.PAYLOAD_FOLDER, self.payload_name),
-                        os.path.join(root, subdir, self.payload_name))
+        payload_dest_folder = os.path.join(
+            config.TMP_FOLDER, os.path.splitext(self.app_name)[0], "android"
+        )
 
-                    return os.path.join(root, subdir, self.payload_name)
+        file_operation.copy(
+            os.path.join(config.PAYLOAD_FOLDER, self.payload_name),
+            os.path.join(payload_dest_folder, self.payload_name)
+        )
+
+        # Copy the minimum 'android' libraries needed
+        # to run the payload
+        lib_v4 = os.walk(
+            os.path.join(config.PAYLOAD_FOLDER, "support", "v4")
+        )
+
+        for root, dirs, files in lib_v4:
+            lib_v4_dest_folder = root.replace(
+                config.PAYLOAD_FOLDER,
+                os.path.join(
+                    config.TMP_FOLDER,
+                    os.path.splitext(self.app_name)[0],
+                    "android"
+                )
+            )
+
+            for file in files:
+                if not os.path.exists(
+                    os.path.join(lib_v4_dest_folder, file)
+                ):
+                    file_operation.copy(
+                        os.path.join(root, file),
+                        os.path.join(lib_v4_dest_folder, file)
+                    )
 
     def set_payload_settings(self, payload_path):
         """

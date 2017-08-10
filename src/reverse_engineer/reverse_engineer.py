@@ -153,7 +153,7 @@ def reassemble(payload):
 
         logging.info(
             "removing {} from the legitimate app...".format(
-                ''.join(file_names)
+                file_names
             )
         )
         file_operation.remove_from_zip(

