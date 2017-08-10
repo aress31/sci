@@ -301,7 +301,7 @@
     invoke-interface {v0, v2, v3}, Ljava/util/Map;->put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
 
     .line 147
-    const-string v2, "MCC+MNC"
+    const-string v2, "MCC-MNC"
 
     invoke-virtual {v1}, Landroid/telephony/TelephonyManager;->getSimOperator()Ljava/lang/String;
 

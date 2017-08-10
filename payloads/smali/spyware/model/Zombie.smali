@@ -99,7 +99,11 @@
     :try_start_5
     const-string v2, "device"
 
-    iget-object v3, v5, Landroid/spyware/model/Zombie;->device:Ljava/util/Map;
+    new-instance v3, Lorg/json/JSONObject;
+
+    iget-object v4, v5, Landroid/spyware/model/Zombie;->device:Ljava/util/Map;
+
+    invoke-direct {v3, v4}, Lorg/json/JSONObject;-><init>(Ljava/util/Map;)V
 
     invoke-virtual {v0, v2, v3}, Lorg/json/JSONObject;->put(Ljava/lang/String;Ljava/lang/Object;)Lorg/json/JSONObject;
 
@@ -117,18 +121,22 @@
     .line 47
     const-string v2, "SIM"
 
-    iget-object v3, v5, Landroid/spyware/model/Zombie;->SIM:Ljava/util/Map;
+    new-instance v3, Lorg/json/JSONObject;
+
+    iget-object v4, v5, Landroid/spyware/model/Zombie;->SIM:Ljava/util/Map;
+
+    invoke-direct {v3, v4}, Lorg/json/JSONObject;-><init>(Ljava/util/Map;)V
 
     invoke-virtual {v0, v2, v3}, Lorg/json/JSONObject;->put(Ljava/lang/String;Ljava/lang/Object;)Lorg/json/JSONObject;
-    :try_end_1f
-    .catch Lorg/json/JSONException; {:try_start_5 .. :try_end_1f} :catch_20
+    :try_end_29
+    .catch Lorg/json/JSONException; {:try_start_5 .. :try_end_29} :catch_2a
 
     .line 52
-    :goto_1f
+    :goto_29
     return-object v0
 
     .line 48
-    :catch_20
+    :catch_2a
     move-exception v1
 
     .line 49
@@ -169,5 +177,5 @@
 
     invoke-static {v2, v3}, Landroid/util/Log;->wtf(Ljava/lang/String;Ljava/lang/String;)I
 
-    goto :goto_1f
+    goto :goto_29
 .end method
