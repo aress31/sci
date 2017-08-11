@@ -60,3 +60,10 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#Project-related folders
+apps/
+debug/
+logs/
+malwares/
+tmp/

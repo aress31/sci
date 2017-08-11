@@ -1,0 +1,36 @@
+{
+    "version": 1,
+    "disable_existing_loggers": true,
+
+    "formatters": {
+        "basic": {
+            "class": "logging.Formatter",
+            "datefmt": "%H:%M:%S",
+            "format": "%(asctime)s %(module)-16s: %(levelname)-8s %(message)s"
+        },
+
+        "colored": {
+            "datefmt": "%H:%M:%S",
+            "format": "%(asctime)s %(module)-16s: %(levelname)-8s %(message)s"
+        }
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "basic",
+            "level": "DEBUG",
+            "stream": "ext://sys.stdout"
+        }
+    },
+
+    "loggers": {
+    },
+
+    "root": {
+        "handlers": [
+            "console"
+        ],
+        "level": "DEBUG"
+    }
+}
