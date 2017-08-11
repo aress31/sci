@@ -8,11 +8,7 @@ Then, new features and payloads were progressively added in an attempt to create
 
 *Tampering Android applications has never been that easy!*
 
-More information about Android reverse engineering can be found at:
-
-<https://www.slideshare.net/slideshow/embed_code/key/6kQq5IjSldDWLl>
-
-More information about my master thesis work can be found at:
+Further information about Android reverse engineering can be found at:
 
 <http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
 
@@ -105,7 +101,11 @@ To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *p
 * Optimise the source code.
 
 ## Project Information
-This framework was developed in the context of my master thesis work in July 2015.	
+This framework was developed in the context of my master thesis work in July 2015.
+
+Further information about my master thesis work can be found at:
+
+<https://www.slideshare.net/slideshow/embed_code/key/6kQq5IjSldDWLl>
 
 ## Dependencies
 ### Third-party libraries
