@@ -4,7 +4,7 @@
 
 
 # static fields
-.field public static final DEV_MODE:Z = true
+.field public static final DEV_MODE:Z = false
 
 .field public static final PROPAGATE:Ljava/lang/String; = "<PROPAGATE>"
 
