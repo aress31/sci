@@ -101,7 +101,7 @@ To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *p
 * Optimise the source code.
 
 ## Project Information
-This framework was developed in the context of my master thesis work in July 2015.
+This framework was developed in the context of my master thesis work in July 2015 and rewritten in 2017.
 
 Further information about my master thesis work can be found at:
 
