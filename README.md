@@ -1,9 +1,9 @@
 ![SCI](images/sci_logo.jpg)
 # Smali Code Injector (SCI)
-[![Language](https://img.shields.io/badge/Lang-Java-blue.svg)](https://www.python.org)
-[![Language](https://img.shields.io/badge/Lang-PHP-blue.svg)](https://www.python.org)
+[![Language](https://img.shields.io/badge/Lang-Java-blue.svg)](https://java.com)
+[![Language](https://img.shields.io/badge/Lang-PHP-blue.svg)](https://www.php.net)
 [![Language](https://img.shields.io/badge/Lang-Python-blue.svg)](https://www.python.org)
-[![Language](https://img.shields.io/badge/Lang-Smali-blue.svg)](https://www.python.org)
+[![Language](https://img.shields.io/badge/Lang-Smali-blue.svg)]
 [![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Automate assembly code (**smali**) injection within Android applications.
