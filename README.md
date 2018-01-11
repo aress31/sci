@@ -1,10 +1,11 @@
 ![SCI](images/sci_logo.jpg)
 # Smali Code Injector (SCI)
+[![Language](https://img.shields.io/badge/Lang-Java-blue.svg)](https://www.python.org)
 [![Language](https://img.shields.io/badge/Lang-Python-blue.svg)](https://www.python.org)
+[![Language](https://img.shields.io/badge/Lang-Smali-blue.svg)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Automate assembly code (**smali**) injection within Android applications.
-
 The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
 
 Then, new features and payloads were progressively added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
@@ -100,8 +101,8 @@ To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *p
     $ adb logcat | grep "::trace"
 
 ## Possible Improvements
-* Create new payloads (e.g. a reverse shell).
-* Optimise the source code.
+- [ ] Create new payloads (e.g. a reverse shell).
+- [ ] Optimise the source code.
 
 ## Project Information
 This framework was developed in the context of my master thesis work in July 2015 and rewritten in 2017.
