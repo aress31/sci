@@ -1,6 +1,7 @@
 ![SCI](images/sci_logo.jpg)
 # Smali Code Injector (SCI)
 [![Language](https://img.shields.io/badge/Lang-Java-blue.svg)](https://www.python.org)
+[![Language](https://img.shields.io/badge/Lang-PHP-blue.svg)](https://www.python.org)
 [![Language](https://img.shields.io/badge/Lang-Python-blue.svg)](https://www.python.org)
 [![Language](https://img.shields.io/badge/Lang-Smali-blue.svg)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -34,71 +35,78 @@ A high level overview of the steps involved during code injection is:
 ## Usage
 ### Examples:
 #### Generic usage:
+```
+ $ python3 sci.py -a APP {search,payload}
 
-    $ python3 sci.py -a APP {search,payload}
+ -a APP, --app APP  	Android application to trojanize
 
-    -a APP, --app APP  	Android application to trojanize
-
-    positional arguments:
-        search          search command - identifies the main activity
-        payload         payload command
+ positional arguments:
+     search          search command - identifies the main activity
+     payload         payload command
+```
 
 #### Search usage:
+```
+ $ python3 sci.py -a APP search
 
-    $ python3 sci.py -a APP search
-
-    -a APP, --app APP   Android application to trojanize
+ -a APP, --app APP   Android application to trojanize
+```
 
 #### Payload usage:
+```
+ $ python3 sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] {logger,spyware}
 
-    $ python3 sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] {logger,spyware}
+ -a APP, --app APP   Android application to trojanize
+ -d DESTINATION, --dest DESTINATION
+                     the destination file or directoy for injection
+ -k KEYWORDS, --keywords KEYWORDS
+                     keywords (separated by ',') for injection filtering
 
-    -a APP, --app APP   Android application to trojanize
-    -d DESTINATION, --dest DESTINATION
-                        the destination file or directoy for injection
-    -k KEYWORDS, --keywords KEYWORDS
-                        keywords (separated by ',') for injection filtering
-
-    positional arguments:
-        logger          logger command
-        spyware         spyware command
+ positional arguments:
+     logger          logger command
+     spyware         spyware command
+```
 
 ##### Logger usage:
+```
+ $ python3 sci.py -a APP [-d DESTINATION] [-k KEYWORDS] logger
 
-    $ python3 sci.py -a APP [-d DESTINATION] [-k KEYWORDS] logger
-
-    -a APP, --app APP   Android application to trojanize
-    -d DESTINATION, --dest DESTINATION
-                        the destination file or directoy for injection
-    -k KEYWORDS, --keywords KEYWORDS
-                        keywords (separated by ',') for injection filtering
+ -a APP, --app APP   Android application to trojanize
+ -d DESTINATION, --dest DESTINATION
+                     the destination file or directoy for injection
+ -k KEYWORDS, --keywords KEYWORDS
+                     keywords (separated by ',') for injection filtering
+```
 
 Launch the Android debugger *adb* using the following command to view application's runtime method calls:
-
-    $ adb logcat | grep "::trace"
+```
+$ adb logcat | grep "::trace"
+```
 
 ##### Spyware usage:
+```
+ $ sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] spyware [-h] -ppg PROPAGATE -rh RHOST
 
-    $ sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] spyware [-h] -ppg PROPAGATE -rh RHOST
-
-    -a APP, --app APP   Android application to trojanize
-    -d DESTINATION, --dest DESTINATION
-                        the destination file or directoy for injection
-    -k KEYWORDS, --keywords KEYWORDS
-                        keywords (separated by ',') for injection filtering
-    -ppg PROPAGATE, --propagate PROPAGATE
-                        spoofed SMS to send for the malware propagation
-    -rh RHOST, --rhost RHOST
-                        attacker's host/ip for stolen data transmission, e.g.
-                        http://192.168.0.24/handler.php
+ -a APP, --app APP   Android application to trojanize
+ -d DESTINATION, --dest DESTINATION
+                     the destination file or directoy for injection
+ -k KEYWORDS, --keywords KEYWORDS
+                     keywords (separated by ',') for injection filtering
+ -ppg PROPAGATE, --propagate PROPAGATE
+                     spoofed SMS to send for the malware propagation
+ -rh RHOST, --rhost RHOST
+                     attacker's host/ip for stolen data transmission, e.g.
+                     http://192.168.0.24/handler.php
+```
 
 *Note*: For optimal results, inject Spyware on the *onCreate()* method of the application main activity.
 
 Server-side scripts to insert and store the stolen data sent to the attacker into a MySQL database are available under the *scripts* folder.
 
 To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *payloads\smali\spyware* line 7. Then launch the Android debugger *adb* using the following command:
-
-    $ adb logcat | grep "::trace"
+```
+$ adb logcat | grep "::trace"
+```
 
 ## Possible Improvements
 - [ ] Create new payloads (e.g. a reverse shell).
