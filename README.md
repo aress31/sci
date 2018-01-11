@@ -1,5 +1,8 @@
 ![SCI](images/sci_logo.jpg)
 # Smali Code Injector (SCI)
+[![Language](https://img.shields.io/badge/Lang-Python-blue.svg)](https://www.python.org)
+[![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
+
 ## Automate assembly code (**smali**) injection within Android applications.
 
 The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
