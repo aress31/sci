@@ -1,205 +1,150 @@
-![SCI](images/sci_logo.jpg)
 # Smali Code Injector (SCI)
+
 [![Language](https://img.shields.io/badge/Lang-Java-blue.svg)](https://java.com)
 [![Language](https://img.shields.io/badge/Lang-PHP-blue.svg)](https://www.php.net)
 [![Language](https://img.shields.io/badge/Lang-Python-blue.svg)](https://www.python.org)
 ![Language](https://img.shields.io/badge/Lang-Smali-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](https://opensource.org/licenses/Apache-2.0)
 
-## Automate assembly code (**smali**) injection within Android applications.
-The initial ambition of this project was to automate stack trace injections within Android applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow. 
+## Automate assembly code (`smali`) injection within `Android` applications.
 
-Then, new features and payloads were progressively added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with Android development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc. 
+The initial ambition of this project was to automate stack trace injections within `Android` applications in order to facilitate my master thesis work. Being able to log and display applications' runtime method calls along with their returned value greatly helps in reverse engineering complex applications by providing an insight into their logic and workflow.
 
-*Tampering Android applications has never been that easy!*
+Then, new features and payloads were progressively added in an attempt to create a framework fully capable of injecting any type of assembly code. Users familiar with `Android` development can easily implement compatible payloads. SCI is in charge of automating low level operation such as registers allocation, dependancie, type, etc.
 
-Further information about Android reverse engineering can be found at:
+_Tampering `Android` applications has never been that easy!_
 
-<http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html>
+Further information about `Android` reverse engineering can be found at:
+
+- http://www.n00blinuxhacker.com/android-pentesting-reverse-engineering-android-app.html
 
 ### Automation for a simpler world...
-Code injections are performed at the assembly level (smali files) making the differenciation process between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
+
+Code injections are performed at the assembly level (`smali` files) making the differenciation process between legit and modified applications complicated and time consuming - it would require considerable forensic work such as network, permissions, signature and code analysis -.
 
 A high level overview of the steps involved during code injection is:
 
 1. Disassembling the application.
-2. Collecting relevant information about the application. 
-    * Classes name.
-    * Methods name.
-    * Registers number and type.
-    * etc.
+2. Collecting relevant information about the application.
+   - Classes name.
+   - Methods name.
+   - Registers number and type.
+   - etc.
 3. Editing the AndroidManifest.xml to add permissions, services and broadcastReceivers (depending on the payload requirements).
-4. Injecting and tweaking up the selected payload within the targeted method(s). Some Android libraries are also injected in order to defeat obfuscation.
+4. Injecting and tweaking up the selected payload within the targeted method(s). Some `Android` libraries are also injected in order to defeat obfuscation.
 5. Reassembling and signing the app with a valid self-signed certificate.
 
 ## Usage
-### Examples:
-#### Generic usage:
-```
- $ python3 sci.py -a APP {search,payload}
 
- -a APP, --app APP  	Android application to trojanize
+- To list the available options:
 
- positional arguments:
-     search          search command - identifies the main activity
-     payload         payload command
-```
+  ```bash
+  python3 sci.py -h
 
-#### Search usage:
-```
- $ python3 sci.py -a APP search
+  -a APP, --app APP  	Android application to trojanize
 
- -a APP, --app APP   Android application to trojanize
-```
+  positional arguments:
+      search          search command - identifies the main activity
+      payload         payload command
+  ```
 
-#### Payload usage:
-```
- $ python3 sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] {logger,spyware}
+- To list `search` options:
 
- -a APP, --app APP   Android application to trojanize
- -d DESTINATION, --dest DESTINATION
-                     the destination file or directoy for injection
- -k KEYWORDS, --keywords KEYWORDS
-                     keywords (separated by ',') for injection filtering
+  ```bash
+  python3 sci.py -a APP search -h
 
- positional arguments:
-     logger          logger command
-     spyware         spyware command
-```
+  -a APP, --app APP   Android application to trojanize
+  ```
 
-##### Logger usage:
-```
- $ python3 sci.py -a APP [-d DESTINATION] [-k KEYWORDS] logger
+- To list `payload` options:
 
- -a APP, --app APP   Android application to trojanize
- -d DESTINATION, --dest DESTINATION
-                     the destination file or directoy for injection
- -k KEYWORDS, --keywords KEYWORDS
-                     keywords (separated by ',') for injection filtering
-```
+  ```bash
+  python3 sci.py -a APP payload -h
 
-Launch the Android debugger *adb* using the following command to view application's runtime method calls:
-```
-$ adb logcat | grep "::trace"
-```
+  -a APP, --app APP   Android application to trojanize
+  -d DESTINATION, --dest DESTINATION
+                      the destination file or directoy for injection
+  -k KEYWORDS, --keywords KEYWORDS
+                      keywords (separated by ',') for injection filtering
 
-##### Spyware usage:
-```
- $ sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] spyware [-h] -ppg PROPAGATE -rh RHOST
+  positional arguments:
+      logger          logger command
+      spyware         spyware command
+  ```
 
- -a APP, --app APP   Android application to trojanize
- -d DESTINATION, --dest DESTINATION
-                     the destination file or directoy for injection
- -k KEYWORDS, --keywords KEYWORDS
-                     keywords (separated by ',') for injection filtering
- -ppg PROPAGATE, --propagate PROPAGATE
-                     spoofed SMS to send for the malware propagation
- -rh RHOST, --rhost RHOST
-                     attacker's host/ip for stolen data transmission, e.g.
-                     http://192.168.0.24/handler.php
-```
+  - To list `logger` options:
 
-*Note*: For optimal results, inject Spyware on the *onCreate()* method of the application main activity.
+    ```bash
+    python3 sci.py -a APP [-d DESTINATION] [-k KEYWORDS] logger -h
 
-Server-side scripts to insert and store the stolen data sent to the attacker into a MySQL database are available under the *scripts* folder.
+    -a APP, --app APP   Android application to trojanize
+    -d DESTINATION, --dest DESTINATION
+                        the destination file or directoy for injection
+    -k KEYWORDS, --keywords KEYWORDS
+                        keywords (separated by ',') for injection filtering
+    ```
 
-To enable the Spyware debugging mode set the *DEV_MODE* variable to *true* in *payloads\smali\spyware* line 7. Then launch the Android debugger *adb* using the following command:
-```
-$ adb logcat | grep "::trace"
-```
+    Launch the `Android` debugger `adb` using the following command to view application's runtime method calls:
 
-## Possible Improvements
-- [ ] Create new payloads (e.g. a reverse shell).
-- [ ] Optimise the source code.
+    ```bash
+    adb logcat | grep "::trace"
+    ```
+
+  - To list `spyware` options:
+
+    ```bash
+    python3 sci.py -a APP payload [-d DESTINATION] [-k KEYWORDS] spyware -h
+
+    -a APP, --app APP   Android application to trojanize
+    -d DESTINATION, --dest DESTINATION
+                        the destination file or directoy for injection
+    -k KEYWORDS, --keywords KEYWORDS
+                        keywords (separated by ',') for injection filtering
+    -ppg PROPAGATE, --propagate PROPAGATE
+                        spoofed SMS to send for the malware propagation
+    -rh RHOST, --rhost RHOST
+                        attacker's host/ip for stolen data transmission, e.g.
+                        http://192.168.0.24/handler.php
+    ```
+
+    > [!Note] 
+    > For optimal results, inject `Spyware` on the `onCreate()` method of the application main activity.
+
+    Server-side scripts used to insert and store the stolen data sent into an attacker-controlled `MySQL` database are available under [scripts](https://github.com/aress31/sci/tree/master/scripts).
+
+    To enable `spyware` debugging mode set `DEV_MODE` to `true` in [payloads\smali\spyware](https://github.com/aress31/sci/blob/master/payloads/smali/spyware/Spyware.smali) at line 7. Then launch the `Android` debugger `adb` using the following command:
+
+    ```bash
+    adb logcat | grep "::trace"
+    ```
+
+## Roadmap
+
+- [ ] Implement new payloads (e.g. `reverse shell`).
+- [ ] Source code optimisation.
 
 ## Project Information
-This framework was developed in the context of my master thesis work in July 2015 and rewritten in 2017.
 
-Further information about my master thesis work can be found at:
+This framework was developed in the context of my [master thesis work](https://www.slideshare.net/AlexandreTeyar/security-in-mobile-banking-apps-154409860) in July 2015 and rewritten in 2017.
 
-<https://www.slideshare.net/slideshow/embed_code/key/6kQq5IjSldDWLl>
+## Sponsor 💖
 
-## Dependencies
-### Third-party libraries
-#### tqdm 4.8.4: 
-The *python3-tqdm* package is required. 
+If you want to support this project and appreciate the time invested in developping, maintening and extending it; consider donating toward my next cup of coffee. ☕
 
-<https://pypi.python.org/pypi/tqdm>
+It is easy, all you got to do is press the `Sponsor` button at the top of this page or alternatively [click this link](https://github.com/sponsors/aress31). 💸
 
-## Licenses
-### Smali Code Injector (SCI):
-   Copyright (C) 2015-2017 Alexandre Teyar
+## Reporting Issues
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Found a bug? I would love to squash it! 🐛
 
-<http://www.apache.org/licenses/LICENSE-2.0>
+Please report all issues on the GitHub [issues tracker](https://github.com/aress31/sci/issues).
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-   limitations under the License. 
+## Contributing
 
-### Apktool:
-   Copyright (C) 2010 Ryszard Wiśniewski 
+You would like to contribute to better this project? 🤩
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Please submit all `PRs` on the GitHub [pull requests tracker](https://github.com/aress31/sci/pulls).
 
-<http://www.apache.org/licenses/LICENSE-2.0>
+## License
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-   limitations under the License.
-
-### smali/baksmali:
-   Copyright (c) 2010 Ben Gruver (JesusFreke)
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-3. The name of the author may not be used to endorse or promote products
-   derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-### tqdm:
-   Copyright (c) 2013 noamraph
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+See [LICENSE](LICENSE).
